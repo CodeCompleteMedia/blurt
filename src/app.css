@@ -61,6 +61,15 @@ button {
   border: 0;
   background: none;
   cursor: pointer;
+
+  /* Everything a student touches is a race, so the browser must not hesitate.
+     `manipulation` drops the wait-and-see for a double-tap zoom, which costs a
+     real ~300ms on a tap that is being timed. The other two stop a fast or
+     held press from flashing a selection highlight over the button. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 :focus-visible {
