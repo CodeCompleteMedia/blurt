@@ -19,6 +19,7 @@ if (!url || !key) {
 }
 
 const db = createClient(url, key, { auth: { persistSession: false } })
+const FORGED = '00000000-0000-0000-0000-000000000000'
 let failures = 0
 
 function check(label, pass, note = '') {
@@ -55,27 +56,59 @@ const { code, host_token: hostToken } = made[0]
 const { data: seat } = await db.rpc('join_game', { p_code: code, p_name: 'Verify' })
 check('join_game issues a seat token', Boolean(seat?.[0]?.player_token))
 
+const { data: rival } = await db.rpc('join_game', { p_code: code, p_name: 'Rival' })
+
 const dup = await db.rpc('join_game', { p_code: code, p_name: 'verify' })
 check('duplicate name refused', dup.error !== null, dup.error?.message)
 
 const early = await db.rpc('submit_answer', { p_player_token: seat[0].player_token, p_choice: 1 })
 check('cannot answer before the question opens', early.error !== null, early.error?.message)
 
-await db.rpc('advance_game', { p_host_token: hostToken })
+await db.rpc('advance_game', { p_host_token: hostToken }) // -> recall
+
+// The recall window is the point of the whole mechanic, so the choices have to
+// be withheld by the database rather than merely hidden by the screen.
+const recall = await db.rpc('current_question', { p_code: code })
+check('choices withheld during recall', recall.data?.[0]?.q_choices === null,
+  `got ${JSON.stringify(recall.data?.[0]?.q_choices)}`)
+
+const studentPeek = await db.rpc('host_question', { p_host_token: FORGED })
+check('a student cannot read the answer key', studentPeek.error !== null, studentPeek.error?.message)
+
+const refCard = await db.rpc('host_question', { p_host_token: hostToken })
+check('the host can read the answer key during recall',
+  Number.isInteger(refCard.data?.[0]?.q_correct_index) && Array.isArray(refCard.data?.[0]?.q_choices))
+
+const firstClaim = await db.rpc('blurt', { p_player_token: seat[0].player_token })
+check('first blurt claims the floor', firstClaim.data === true)
+
+const secondClaim = await db.rpc('blurt', { p_player_token: rival[0].player_token })
+check('a second blurt finds it taken', secondClaim.data === false)
+
+const studentJudge = await db.rpc('judge_blurt', { p_host_token: FORGED, p_correct: true })
+check('a student cannot judge a blurt', studentJudge.error !== null, studentJudge.error?.message)
+
+await db.rpc('judge_blurt', { p_host_token: hostToken, p_correct: false })
+
+const lockedOut = await db.from('players').select('score').eq('id', seat[0].player_id).maybeSingle()
+await db.rpc('submit_answer', { p_player_token: seat[0].player_token, p_choice: 0 })
+const stillLocked = await db.from('players').select('score').eq('id', seat[0].player_id).maybeSingle()
+check('a wrong blurt locks that player out of the question',
+  lockedOut.data?.score === stillLocked.data?.score,
+  `${lockedOut.data?.score} -> ${stillLocked.data?.score}`)
 
 const open = await db.rpc('current_question', { p_code: code })
+check('choices appear once the blurt is judged wrong', Array.isArray(open.data?.[0]?.q_choices))
 check('correct answer withheld while open', open.data?.[0]?.q_correct_index === null,
   `got ${JSON.stringify(open.data?.[0]?.q_correct_index)}`)
 
 const dist = await db.rpc('distribution', { p_code: code })
 check('distribution empty before results', (dist.data?.length ?? 0) === 0)
 
-const notHost = await db.rpc('advance_game', {
-  p_host_token: '00000000-0000-0000-0000-000000000000',
-})
+const notHost = await db.rpc('advance_game', { p_host_token: FORGED })
 check('a student cannot advance the game', notHost.error !== null, notHost.error?.message)
 
-await db.rpc('submit_answer', { p_player_token: seat[0].player_token, p_choice: open.data[0].q_choices.length - 4 })
+await db.rpc('submit_answer', { p_player_token: rival[0].player_token, p_choice: 0 })
 await db.rpc('advance_game', { p_host_token: hostToken })
 await db.rpc('advance_game', { p_host_token: hostToken })
 

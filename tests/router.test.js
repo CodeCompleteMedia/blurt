@@ -1,16 +1,27 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { viewFor } from '../src/lib/router.js'
+import { routeFor } from '../src/lib/router.js'
 
 test('each surface has a path', () => {
-  assert.equal(viewFor('/'), 'join')
-  assert.equal(viewFor('/play'), 'play')
-  assert.equal(viewFor('/host'), 'host')
+  assert.deepEqual(routeFor('/'), { view: 'join' })
+  assert.deepEqual(routeFor('/play'), { view: 'play' })
+  assert.deepEqual(routeFor('/host'), { view: 'host' })
+})
+
+test('the wall carries its room code in the path', () => {
+  assert.deepEqual(routeFor('/present/VGP2G'), { view: 'present', code: 'VGP2G' })
+  assert.deepEqual(routeFor('/present/vgp2g'), { view: 'present', code: 'VGP2G' })
+  assert.deepEqual(routeFor('/present'), { view: 'present', code: null })
 })
 
 test('trailing slashes and unknown paths fall back to join', () => {
-  assert.equal(viewFor('/host/'), 'host')
-  assert.equal(viewFor('/nope'), 'join')
-  assert.equal(viewFor(''), 'join')
+  assert.deepEqual(routeFor('/host/'), { view: 'host' })
+  assert.deepEqual(routeFor('/present/VGP2G/'), { view: 'present', code: 'VGP2G' })
+  assert.deepEqual(routeFor('/nope'), { view: 'join' })
+  assert.deepEqual(routeFor(''), { view: 'join' })
+})
+
+test('a malformed code is not mistaken for a room', () => {
+  assert.deepEqual(routeFor('/present/way-too-long-to-be-a-code'), { view: 'join' })
 })

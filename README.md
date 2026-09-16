@@ -11,16 +11,43 @@ npm test                           # clock and router
 npm run verify:db                  # the security properties, against the real database
 ```
 
-## The three surfaces
+## The four surfaces
 
-| Path    | Who       | What it shows                                              |
-| ------- | --------- | ---------------------------------------------------------- |
-| `/`     | student   | Room code, then name                                        |
-| `/play` | student   | Four shapes and nothing else — no question text on a phone  |
-| `/host` | projector | Room code, question, countdown, distribution, leaderboard   |
+| Path             | Who         | What it shows                                                     |
+| ---------------- | ----------- | ----------------------------------------------------------------- |
+| `/`              | student     | Room code, then name                                               |
+| `/play`          | student     | One blurt button, or four shapes — never the question text         |
+| `/present/CODE`  | the wall    | Question, countdown, distribution, leaderboard. No controls        |
+| `/host`          | the teacher | Live roster, the answer key, and every control                      |
 
-Open `/host` and it opens a room. Space advances, `R` starts a new room. A
-question that runs out of time locks itself.
+Open `/host` and it opens a room, then press `P` for the projector window.
+Space advances, `Y`/`N` judges a blurt, `R` starts a new room. Recall and the
+answer window both close themselves.
+
+`/present` holds no credential — it is a screen, not a session, identified by
+the room code in its path. The host token lives on `/host` instead, which is the
+machine the room cannot see.
+
+## Blurt
+
+A question opens with its **choices hidden**. For a few seconds anyone can hit
+one button; the claimant says the answer out loud and the teacher marks it.
+
+- **Right** — 1500 points, more than any tapped answer can be worth.
+- **Wrong** — you are out of this question. Everyone else gets the choices.
+- **Nobody claims it** — the choices go up and it is an ordinary question.
+
+Recall is the high-value path and recognition is the fallback, which is the
+point: it rewards knowing the answer over spotting it.
+
+Claiming the floor is one conditional update, so whoever the database writes
+first wins and every later claim matches zero rows. There is no tie to resolve
+and no client-supplied timestamp to trust. The network is still a race — same
+wifi, and it plays fair.
+
+The wrong-blurt lockout needs no new enforcement: the blurt writes an `answers`
+row, and the existing unique index on `(game, player, question)` is what then
+refuses their multiple-choice attempt.
 
 ## Where the rules live
 
@@ -38,6 +65,13 @@ Five things are never taken from a client:
 | the score | computed alongside it, never sent by the client |
 | player identity | a seat token the database issued at join |
 | host authority | a host token kept off the anon-readable `games` row |
+| the choices, during recall | withheld by `current_question` until the window closes |
+
+That last row is the one that makes recall real. Hiding the choices on screen
+would be theatre — a student with the console would read them straight out of
+the API. `host_question` is the deliberate exception: the referee has to know
+the answer while a student is saying it out loud, and it is gated on the host
+token.
 
 `submit_answer` takes a seat token and a choice. That is the whole payload.
 

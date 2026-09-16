@@ -1,11 +1,13 @@
 <script>
   // The phone. It never shows the question text, never learns the correct
-  // answer, and never reports how long anything took — it sends a seat token
-  // and a choice, and waits to be told what the room is doing.
+  // answer, and never reports how long anything took.
+  //
+  // During recall it shows one button. Hitting it is a bet: right and it is
+  // worth more than any tapped answer, wrong and this question is over for you.
   import AnswerTile from '../components/AnswerTile.svelte'
   import Leaderboard from '../components/Leaderboard.svelte'
   import { SHAPES } from '../lib/answers.js'
-  import { fetchGame, fetchPlayers, submitAnswer, watchGame } from '../lib/api.js'
+  import { blurt, fetchGame, fetchPlayers, submitAnswer, watchGame } from '../lib/api.js'
   import { ordinal } from '../lib/ordinal.js'
   import { clearSeat, readSeat } from '../lib/session.js'
 
@@ -16,12 +18,18 @@
   let picked = $state(null)
   let answeredIndex = $state(null)
   let busy = $state(false)
+  let missed = $state(false)
   let problem = $state('')
   let booting = $state(true)
 
   let me = $derived(players.find((player) => player.id === seat?.playerId) ?? null)
-  let open = $derived(game?.phase === 'question_open')
+  let phase = $derived(game?.phase ?? null)
   let locked = $derived(picked != null && answeredIndex === game?.question_index)
+
+  // Straight from the game row rather than from local state: the server decides
+  // who holds the floor, and the phone just reads it.
+  let iHaveTheFloor = $derived(game?.blurted_by === seat?.playerId)
+  let lockedOut = $derived(iHaveTheFloor && phase === 'question_open')
 
   async function boot() {
     const saved = readSeat()
@@ -46,11 +54,26 @@
     }
   }
 
+  async function claim() {
+    if (phase !== 'recall' || busy) return
+    busy = true
+    missed = false
+    try {
+      const got = await blurt(seat.playerToken)
+      // Someone was a fraction faster. Say so plainly rather than leaving the
+      // button looking broken.
+      if (!got) missed = true
+    } catch (error) {
+      problem = error.message
+    } finally {
+      busy = false
+    }
+  }
+
   async function pick(choice) {
-    if (!open || locked || busy) return
+    if (phase !== 'question_open' || locked || lockedOut || busy) return
     busy = true
     problem = ''
-    // Show it locked immediately — a teenager who sees no response taps again.
     picked = choice
     answeredIndex = game.question_index
     try {
@@ -73,9 +96,6 @@
     boot()
   })
 
-  // Depends only on ids that never change while the game runs. Reading
-  // `game.id` here instead would make this effect its own dependency: each
-  // update would tear the subscription down and rebuild it.
   $effect(() => {
     if (!gameId || !seat?.code) return
     const watch = watchGame({
@@ -87,11 +107,12 @@
     return watch.stop
   })
 
-  // A new question clears the last answer. Keyed on the index rather than the
-  // phase so a re-render mid-question never unlocks a submitted answer.
   $effect(() => {
     const index = game?.question_index
-    if (index != null && index !== answeredIndex) picked = null
+    if (index != null && index !== answeredIndex) {
+      picked = null
+      missed = false
+    }
   })
 </script>
 
@@ -103,31 +124,58 @@
       <p class="muted">{problem}</p>
       <button class="ghost" onclick={leave}>Leave</button>
     </div>
-  {:else if game?.phase === 'lobby'}
+  {:else if phase === 'lobby'}
     <div class="centred">
       <p class="eyebrow">You're in</p>
       <h1>{seat.name}</h1>
       <p class="muted">Look up at the board.</p>
     </div>
-  {:else if open && !locked}
+  {:else if phase === 'recall'}
+    <div class="blurt-wrap">
+      {#if missed}
+        <p class="eyebrow">Someone beat you to it</p>
+      {:else}
+        <p class="eyebrow">Know it?</p>
+      {/if}
+      <button class="blurt" onclick={claim} disabled={busy || missed}>BLURT</button>
+      <p class="muted small">Right, it's worth more. Wrong, you're out this round.</p>
+    </div>
+  {:else if phase === 'blurt_claimed'}
+    <div class="centred">
+      {#if iHaveTheFloor}
+        <p class="eyebrow">You have the floor</p>
+        <h1 class="accent">Say it</h1>
+        <p class="muted">Out loud, to the room.</p>
+      {:else}
+        <p class="eyebrow">Someone's blurting</p>
+        <h1 class="hush">Listen</h1>
+      {/if}
+    </div>
+  {:else if lockedOut}
+    <div class="centred">
+      <p class="eyebrow">You blurted</p>
+      <h1 class="hush">Sit this one out</h1>
+      <p class="muted">Back in on the next question.</p>
+    </div>
+  {:else if phase === 'question_open' && !locked}
     <header><span class="eyebrow">Look up at the board</span></header>
     <div class="pad">
       {#each SHAPES as shape, i}
         <AnswerTile {shape} showText={false} onclick={() => pick(i)} disabled={busy} />
       {/each}
     </div>
-  {:else if open || game?.phase === 'locked'}
+  {:else if phase === 'question_open' || phase === 'locked'}
     <div class="centred">
       <h1 class="accent">Locked in</h1>
       {#if picked != null}<p class="muted">{SHAPES[picked].label}</p>{/if}
     </div>
-  {:else if game?.phase === 'results'}
+  {:else if phase === 'results'}
     <div class="centred">
       <p class="eyebrow">Your score</p>
       <h1>{me ? me.score.toLocaleString() : '—'}</h1>
       <p class="muted">{me ? `${ordinal(me.rank)} of ${players.length}` : ''}</p>
     </div>
-  {:else if game?.phase === 'final'}
+  {:else if phase === 'final'}
     <div class="final">
       <p class="eyebrow">Final</p>
       <h1>{me ? ordinal(me.rank) : '—'}</h1>
@@ -153,7 +201,8 @@
   }
 
   .centred,
-  .final {
+  .final,
+  .blurt-wrap {
     grid-row: 1 / -1;
     display: grid;
     align-content: center;
@@ -164,7 +213,6 @@
 
   .final {
     gap: 18px;
-    align-content: center;
     width: 100%;
   }
 
@@ -180,9 +228,49 @@
     color: var(--accent);
   }
 
+  .hush {
+    color: var(--muted);
+  }
+
   .muted {
     margin: 0;
     color: var(--muted);
+  }
+
+  .small {
+    font-size: 13px;
+    max-width: 24ch;
+  }
+
+  /* One button, as big as the phone allows. */
+  .blurt-wrap {
+    gap: 22px;
+  }
+
+  .blurt {
+    width: min(78vw, 300px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #1a0d07;
+    font-family: var(--display);
+    font-size: clamp(44px, 14vw, 64px);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    box-shadow: 0 10px 0 #a33d22;
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+
+  .blurt:active:not(:disabled) {
+    transform: translateY(8px);
+    box-shadow: 0 2px 0 #a33d22;
+  }
+
+  .blurt:disabled {
+    background: var(--surface-2);
+    color: var(--muted);
+    box-shadow: none;
+    cursor: default;
   }
 
   .pad {

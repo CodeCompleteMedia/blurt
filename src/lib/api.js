@@ -97,6 +97,68 @@ export async function advanceGame(hostToken) {
   if (error) fail(error)
 }
 
+/** Claims the floor. False means someone else got there first. */
+export async function blurt(playerToken) {
+  const { data, error } = await db.rpc('blurt', { p_player_token: playerToken })
+  if (error) fail(error)
+  return data === true
+}
+
+/** The teacher's verdict on a spoken answer. */
+export async function judgeBlurt(hostToken, correct) {
+  const { error } = await db.rpc('judge_blurt', { p_host_token: hostToken, p_correct: correct })
+  if (error) fail(error)
+}
+
+/** Who holds the floor, for the wall. A name is all this returns. */
+export async function blurter(code) {
+  const { data, error } = await db.rpc('blurter', { p_code: code })
+  if (error) fail(error)
+  const row = data?.[0]
+  return row ? { id: row.player_id, name: row.player_name } : null
+}
+
+/**
+ * The same question the wall is showing, but never withheld — the referee has
+ * to know the answer while a student is saying it out loud.
+ */
+export async function hostQuestion(hostToken) {
+  const { data, error } = await db.rpc('host_question', { p_host_token: hostToken })
+  if (error) fail(error)
+  const row = data?.[0]
+  if (!row) return null
+  return {
+    position: row.q_position,
+    text: row.q_text,
+    choices: row.q_choices,
+    seconds: row.q_seconds,
+    recallSeconds: row.q_recall_seconds,
+    correctIndex: row.q_correct_index,
+  }
+}
+
+/**
+ * The teacher's read of the room. Gated on the host token because it is built
+ * from `answers`, which no client may read directly.
+ */
+export async function rosterStats(hostToken) {
+  const { data, error } = await db.rpc('roster_stats', { p_host_token: hostToken })
+  if (error) fail(error)
+  return (data ?? []).map((row, i) => ({
+    id: row.player_id,
+    name: row.player_name,
+    score: row.score,
+    answered: row.answered,
+    correct: row.correct,
+    streak: row.streak,
+    avgMs: row.avg_ms,
+    blurtWins: row.blurt_wins,
+    answeredCurrent: row.answered_current,
+    quietFor: row.quiet_for,
+    rank: i + 1,
+  }))
+}
+
 // ------------------------------------------------------------------- watch ---
 
 /**

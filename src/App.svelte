@@ -1,11 +1,12 @@
 <script>
   import { configured } from './lib/supabase.js'
-  import { viewFor } from './lib/router.js'
+  import { routeFor } from './lib/router.js'
   import Host from './views/Host.svelte'
   import Join from './views/Join.svelte'
   import Play from './views/Play.svelte'
+  import Present from './views/Present.svelte'
 
-  const view = viewFor()
+  const route = routeFor()
 </script>
 
 {#if !configured}
@@ -19,9 +20,11 @@
       <p class="fix">Run <code>vercel env pull .env.local</code>, then restart the dev server.</p>
     </div>
   </main>
-{:else if view === 'host'}
+{:else if route.view === 'host'}
   <Host />
-{:else if view === 'play'}
+{:else if route.view === 'present'}
+  <Present code={route.code} />
+{:else if route.view === 'play'}
   <Play />
 {:else}
   <Join />

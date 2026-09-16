@@ -1,47 +1,59 @@
 <script>
-  // The projector. It owns nothing: the database decides the phase, the timing
-  // and the scores, and this view renders whatever comes back. The teacher's
-  // spacebar is a request to advance, not the advance itself.
-  import AnswerTile from '../components/AnswerTile.svelte'
-  import CountdownRing from '../components/CountdownRing.svelte'
-  import DistributionBars from '../components/DistributionBars.svelte'
-  import Leaderboard from '../components/Leaderboard.svelte'
+  // The teacher's screen. Not a second projector — a control surface.
+  //
+  // It holds the host token, which is why it is the machine the room cannot see,
+  // and it is the only place `answers` is legible: the roster below comes from a
+  // function gated on that token.
   import {
     advanceGame,
+    blurter,
     createGame,
-    currentQuestion,
-    distribution,
     fetchGame,
-    fetchPlayers,
     firstQuiz,
+    hostQuestion,
+    judgeBlurt,
+    rosterStats,
     watchGame,
   } from '../lib/api.js'
-  import { shapeFor } from '../lib/answers.js'
-  import { clockBase, remainingFraction, ticker } from '../lib/clock.js'
+  import { clockBase, remainingSeconds, ticker } from '../lib/clock.js'
   import { clearHost, readHost, writeHost } from '../lib/session.js'
 
   let host = $state(null)
   let game = $state(null)
-  let players = $state([])
+  let roster = $state([])
   let question = $state(null)
-  let counts = $state([])
+  let floor = $state(null)
   let quizTitle = $state('')
   let booting = $state(true)
   let problem = $state('')
   let now = $state(Date.now())
   let questionBase = $state(null)
-
-  // The poll replaces `game` every few seconds even when nothing changed, so
-  // the reloads below are keyed to the question rather than to the object.
   let loadedKey = ''
   let autoLockedKey = ''
 
-  let joinUrl = $derived(
-    typeof location === 'undefined' ? '' : location.host.replace(/^www\./, ''),
+  let phase = $derived(game?.phase ?? null)
+  let limit = $derived(
+    phase === 'recall' ? (question?.recallSeconds ?? 8) * 1000 : (question?.seconds ?? 20) * 1000,
   )
-  let limit = $derived((question?.seconds ?? 20) * 1000)
-  let answering = $derived(game?.phase === 'question_open')
-  let total = $derived(players.length)
+  let left = $derived(questionBase ? remainingSeconds(questionBase, limit, now) : null)
+  let presentUrl = $derived(host ? `/present/${host.code}` : '')
+  let answered = $derived(roster.filter((p) => p.answeredCurrent).length)
+
+  // The two columns a teacher actually acts on mid-lesson.
+  let struggling = $derived(
+    roster.filter((p) => p.answered >= 2 && p.correct / p.answered < 0.5).length,
+  )
+  let quiet = $derived(roster.filter((p) => p.quietFor >= 2).length)
+
+  const PHASE_LABEL = {
+    lobby: 'Lobby',
+    recall: 'Recall — choices hidden',
+    blurt_claimed: 'Blurt claimed',
+    question_open: 'Choices up',
+    locked: 'Time',
+    results: 'Results',
+    final: 'Finished',
+  }
 
   async function startNewGame() {
     const quiz = await firstQuiz()
@@ -66,7 +78,7 @@
         }
       }
       if (!host) await startNewGame()
-      players = await fetchPlayers(host.gameId)
+      roster = await rosterStats(host.hostToken)
     } catch (error) {
       problem = error.message
     } finally {
@@ -74,21 +86,25 @@
     }
   }
 
-  async function step() {
+  async function run(fn) {
     if (!host) return
     try {
-      await advanceGame(host.hostToken)
+      await fn()
       game = await fetchGame(host.code)
+      roster = await rosterStats(host.hostToken)
     } catch (error) {
       problem = error.message
     }
   }
 
+  const step = () => run(() => advanceGame(host.hostToken))
+  const judge = (correct) => run(() => judgeBlurt(host.hostToken, correct))
+
   async function restart() {
     clearHost()
     host = null
     game = null
-    players = []
+    roster = []
     question = null
     booting = true
     problem = ''
@@ -102,11 +118,19 @@
   }
 
   function onkeydown(event) {
-    if (event.key === ' ' || event.key === 'Enter') {
+    const key = event.key.toLowerCase()
+    if (event.target instanceof HTMLInputElement) return
+
+    if (phase === 'blurt_claimed' && (key === 'y' || key === 'n')) {
+      event.preventDefault()
+      judge(key === 'y')
+    } else if (event.key === ' ' || event.key === 'Enter') {
       event.preventDefault()
       step()
-    } else if (event.key.toLowerCase() === 'r') {
+    } else if (key === 'r') {
       restart()
+    } else if (key === 'p') {
+      window.open(presentUrl, 'blurt-present')
     }
   }
 
@@ -116,55 +140,49 @@
 
   $effect(() => ticker((t) => (now = t)))
 
-  // Follow the game. Realtime pushes; the poll underneath covers school wifi.
   $effect(() => {
     if (!host?.gameId) return
     const watch = watchGame({
       code: host.code,
       gameId: host.gameId,
       onGame: (row) => (game = row),
-      onPlayers: (rows) => (players = rows),
+      onPlayers: async () => (roster = await rosterStats(host.hostToken)),
     })
     return watch.stop
   })
 
-  // Each new question is a fresh read: the text always, the correct answer and
-  // the distribution only once the database is willing to part with them.
   $effect(() => {
-    const phase = game?.phase
+    const p = game?.phase
     const index = game?.question_index
     const started = game?.question_started_at
     if (!host || index == null || index < 0) {
       question = null
-      counts = []
+      floor = null
       loadedKey = ''
       return
     }
-
-    const key = `${phase}:${index}:${started}`
+    const key = `${p}:${index}:${started}`
     if (key === loadedKey) return
     loadedKey = key
     questionBase = clockBase(started, limit, Date.now())
-
     void (async () => {
       try {
-        question = await currentQuestion(host.code)
-        counts = phase === 'results' ? await distribution(host.code) : []
+        question = await hostQuestion(host.hostToken)
+        floor = p === 'blurt_claimed' ? await blurter(host.code) : null
+        roster = await rosterStats(host.hostToken)
       } catch (error) {
         problem = error.message
       }
     })()
   })
 
-  // The projector holds the host token, so it is the thing that can close a
-  // question when the clock runs out. Without this the board sits at zero with
-  // the tiles still lit, looking broken, until someone touches the keyboard.
+  // Recall and the answer window both close themselves. The teacher is holding a
+  // class, not a stopwatch.
   $effect(() => {
-    if (game?.phase !== 'question_open' || !questionBase || !host) return
+    if (phase !== 'recall' && phase !== 'question_open') return
+    if (!questionBase || !host) return
     if (questionBase + limit - now > 0) return
-    // `now` ticks every frame, so this guard — not a timer — is what keeps the
-    // deadline from firing repeatedly.
-    const key = `${game.question_index}:${questionBase}`
+    const key = `${phase}:${game.question_index}:${questionBase}`
     if (autoLockedKey === key) return
     autoLockedKey = key
     step()
@@ -173,269 +191,359 @@
 
 <svelte:window {onkeydown} />
 
-<main class="stage">
-  <header>
-    <span class="eyebrow">blurt</span>
-    {#if game && game.question_index >= 0 && game.phase !== 'final'}
-      <span class="eyebrow">Question {game.question_index + 1}</span>
-    {/if}
-    {#if host}
-      <span class="eyebrow code">Join at {joinUrl} &middot; {host.code}</span>
-    {/if}
-  </header>
-
+<main class="dash">
   {#if booting}
-    <section class="centred"><p class="muted">Opening a room…</p></section>
+    <p class="muted">Opening a room…</p>
   {:else if problem}
-    <section class="centred">
-      <h2>Something went wrong</h2>
-      <p class="muted">{problem}</p>
-      <p class="muted small">Press R to start a new room.</p>
-    </section>
-  {:else if game?.phase === 'lobby'}
-    <section class="lobby">
-      <p class="eyebrow">Room code</p>
-      <h1 class="code-big">{host.code}</h1>
-      <p class="sub">{quizTitle}</p>
-      {#if players.length}
-        <ul class="roster">
-          {#each players as player (player.id)}
-            <li>{player.name}</li>
-          {/each}
-        </ul>
-      {:else}
-        <p class="muted waiting">Waiting for the first phone…</p>
-      {/if}
-    </section>
-  {:else if question && (game.phase === 'question_open' || game.phase === 'locked')}
-    <section class="question">
-      <div class="q-head">
-        <h2>{question.text}</h2>
-        {#if answering}
-          <CountdownRing startedAt={questionBase} {limit} />
-        {:else}
-          <div class="times-up"><span>Time</span></div>
+    <div class="panel warn">
+      <p>{problem}</p>
+      <button onclick={restart}>Start a new room</button>
+    </div>
+  {:else}
+    <header>
+      <div>
+        <span class="eyebrow">Room</span>
+        <strong class="code">{host.code}</strong>
+      </div>
+      <div>
+        <span class="eyebrow">Phase</span>
+        <strong>{PHASE_LABEL[phase] ?? phase}</strong>
+        {#if left != null && (phase === 'recall' || phase === 'question_open')}
+          <span class="secs">{left}s</span>
         {/if}
       </div>
-      <div class="tiles">
-        {#each question.choices as choice, i}
-          <AnswerTile
-            shape={shapeFor(i)}
-            text={choice}
-            state={game.phase === 'locked' ? 'dimmed' : 'idle'}
-          />
-        {/each}
+      <div class="grow">
+        <span class="eyebrow">Quiz</span>
+        <strong>{quizTitle}</strong>
       </div>
-      <p class="answered">{game.answered_count} of {total} answered</p>
-    </section>
-  {:else if game?.phase === 'results' && question}
-    <section class="results">
-      <div class="left">
-        <p class="eyebrow">The class said</p>
-        <DistributionBars {counts} correctIndex={question.correctIndex ?? 0} />
-        <p class="correct-line">
-          Correct: <strong>{question.choices[question.correctIndex] ?? '—'}</strong>
+      <button class="ghost" onclick={() => window.open(presentUrl, 'blurt-present')}>
+        Open projector ↗
+      </button>
+    </header>
+
+    {#if phase === 'blurt_claimed'}
+      <!-- The one moment the teacher has to act rather than observe. -->
+      <div class="panel claim">
+        <div>
+          <span class="eyebrow">Has the floor</span>
+          <strong class="who">{floor?.name ?? '…'}</strong>
+        </div>
+        <p class="answer">Answer: <strong>{question?.choices?.[question?.correctIndex] ?? '—'}</strong></p>
+        <div class="verdict">
+          <button class="yes" onclick={() => judge(true)}>Correct <kbd>Y</kbd></button>
+          <button class="no" onclick={() => judge(false)}>Wrong <kbd>N</kbd></button>
+        </div>
+      </div>
+    {:else if question && phase !== 'lobby' && phase !== 'final'}
+      <div class="panel q">
+        <p class="qtext">{question.text}</p>
+        <p class="answer">
+          Answer: <strong>{question.choices?.[question.correctIndex] ?? '—'}</strong>
+          {#if phase === 'recall'}<span class="muted"> · hidden from the room</span>{/if}
         </p>
       </div>
-      <div class="right">
-        <p class="eyebrow">Standings</p>
-        <Leaderboard standings={players} />
-      </div>
-    </section>
-  {:else if game?.phase === 'final'}
-    <section class="final">
-      <p class="eyebrow">Final</p>
-      <h1>{players[0]?.name ?? 'Nobody'} wins</h1>
-      <Leaderboard standings={players} limit={5} />
-      <p class="muted small">Press R for a new room</p>
-    </section>
-  {:else}
-    <section class="centred"><p class="muted">Loading the question…</p></section>
-  {/if}
+    {/if}
 
-  <footer class="eyebrow">Space advances &middot; R opens a new room</footer>
+    <div class="tiles">
+      <div class="tile"><span class="n">{answered}<small>/{roster.length}</small></span><span class="eyebrow">answered</span></div>
+      <div class="tile" class:flag={struggling > 0}><span class="n">{struggling}</span><span class="eyebrow">under 50%</span></div>
+      <div class="tile" class:flag={quiet > 0}><span class="n">{quiet}</span><span class="eyebrow">gone quiet</span></div>
+    </div>
+
+    {#if roster.length}
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Name</th><th class="r">Score</th><th class="r">Right</th>
+              <th class="r">Streak</th><th class="r">Blurts</th><th class="r">Avg</th><th>State</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each roster as p (p.id)}
+              <tr class:quiet={p.quietFor >= 2}>
+                <td class="muted">{p.rank}</td>
+                <td class="name">{p.name}</td>
+                <td class="r">{p.score.toLocaleString()}</td>
+                <td class="r">{p.answered ? `${p.correct}/${p.answered}` : '—'}</td>
+                <td class="r">{p.streak || '—'}</td>
+                <td class="r">{p.blurtWins || '—'}</td>
+                <td class="r">{p.avgMs ? `${(p.avgMs / 1000).toFixed(1)}s` : '—'}</td>
+                <td>
+                  {#if p.answeredCurrent}
+                    <span class="pill in">in</span>
+                  {:else if p.quietFor >= 2}
+                    <span class="pill out">quiet {p.quietFor}</span>
+                  {:else}
+                    <span class="pill wait">waiting</span>
+                  {/if}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {:else}
+      <p class="muted">Nobody has joined yet. Students go to <strong>/</strong> and enter {host.code}.</p>
+    {/if}
+
+    <footer class="eyebrow">
+      Space advances · Y/N judges a blurt · P opens the projector · R new room
+    </footer>
+  {/if}
 </main>
 
 <style>
-  .stage {
+  .dash {
     display: grid;
-    grid-template-rows: auto 1fr auto;
-    gap: 24px;
+    grid-template-rows: auto auto auto 1fr auto;
+    gap: 14px;
+    align-content: start;
     height: 100%;
-    padding: 28px clamp(24px, 4vw, 56px) 20px;
-  }
-
-  header,
-  footer {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 28px;
-    align-items: baseline;
-  }
-
-  header .code {
-    margin-left: auto;
-    color: var(--ink);
-  }
-
-  section {
-    min-height: 0;
-  }
-
-  .centred {
-    display: grid;
-    align-content: center;
-    justify-items: center;
-    gap: 10px;
-    text-align: center;
-  }
-
-  .muted {
-    margin: 0;
-    color: var(--muted);
-    font-size: clamp(16px, 1.6vw, 20px);
-  }
-
-  .small {
-    font-size: 14px;
-  }
-
-  /* Lobby */
-  .lobby {
-    display: grid;
-    align-content: center;
-    justify-items: center;
-    gap: 10px;
-    text-align: center;
-  }
-
-  .code-big {
-    font-size: clamp(90px, 20vw, 260px);
-    letter-spacing: 0.02em;
-  }
-
-  .sub {
-    margin: 0;
-    font-size: clamp(18px, 2vw, 26px);
-    color: var(--muted);
-  }
-
-  .waiting {
-    margin-top: 20px;
-  }
-
-  .roster {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px;
-    margin: 24px 0 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .roster li {
-    padding: 8px 16px;
-    border-radius: 999px;
-    background: var(--surface);
-    font-size: 18px;
-  }
-
-  /* Question */
-  .question {
-    display: grid;
-    grid-template-rows: auto 1fr auto;
-    gap: 22px;
-  }
-
-  .q-head {
-    display: flex;
-    gap: 32px;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .q-head h2 {
-    font-family: var(--body);
-    font-size: clamp(28px, 4vw, 54px);
-    font-weight: 600;
-    line-height: 1.1;
-    text-transform: none;
-    text-wrap: balance;
-  }
-
-  .times-up {
-    display: grid;
-    place-items: center;
-    width: 120px;
-    height: 120px;
-    border: 4px solid var(--accent);
-    border-radius: 50%;
-    font-family: var(--display);
-    font-size: 34px;
-    color: var(--accent);
-    text-transform: uppercase;
-  }
-
-  .tiles {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    align-content: center;
-  }
-
-  .answered {
-    margin: 0;
-    color: var(--muted);
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* Results */
-  .results {
-    display: grid;
-    grid-template-columns: 1.2fr 1fr;
-    gap: 40px;
-  }
-
-  .left,
-  .right {
-    display: grid;
-    grid-template-rows: auto 1fr auto;
-    gap: 16px;
-    min-height: 0;
-  }
-
-  .correct-line {
-    margin: 0;
-    font-size: clamp(18px, 2vw, 26px);
-    color: var(--muted);
-  }
-
-  .correct-line strong {
-    color: var(--ink);
-  }
-
-  /* Final */
-  .final {
-    display: grid;
-    align-content: center;
-    gap: 18px;
-    max-width: 760px;
+    padding: 20px clamp(16px, 3vw, 32px);
+    max-width: 1100px;
     margin: 0 auto;
     width: 100%;
   }
 
-  .final h1 {
-    font-size: clamp(52px, 9vw, 120px);
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 28px;
+    align-items: center;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
   }
 
-  @media (max-width: 900px) {
-    .results {
+  header div {
+    display: grid;
+    gap: 1px;
+  }
+
+  .grow {
+    flex: 1;
+  }
+
+  .code {
+    font-family: var(--display);
+    font-size: 30px;
+    letter-spacing: 0.12em;
+  }
+
+  .secs {
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .muted {
+    color: var(--muted);
+    margin: 0;
+  }
+
+  .panel {
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    display: grid;
+    gap: 10px;
+  }
+
+  .panel.warn {
+    border-left: 3px solid var(--accent);
+  }
+
+  .panel.claim {
+    border-color: var(--accent);
+    background: var(--surface-2);
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 12px 20px;
+  }
+
+  .who {
+    font-family: var(--display);
+    font-size: 40px;
+    color: var(--accent);
+  }
+
+  .qtext {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  .answer {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .answer strong {
+    color: var(--ink);
+  }
+
+  .verdict {
+    display: flex;
+    gap: 10px;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .verdict button {
+    padding: 14px 22px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #10151b;
+  }
+
+  .yes {
+    background: #3fbf87;
+  }
+
+  .no {
+    background: #e0664a;
+  }
+
+  kbd {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(16, 21, 27, 0.25);
+    font: inherit;
+    font-size: 12px;
+  }
+
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .tile {
+    display: grid;
+    gap: 2px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+  }
+
+  .tile.flag {
+    border-color: var(--accent);
+  }
+
+  .tile .n {
+    font-family: var(--display);
+    font-size: 30px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tile small {
+    font-size: 16px;
+    color: var(--muted);
+  }
+
+  .scroll {
+    overflow: auto;
+    min-height: 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--surface-2);
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    padding: 9px 12px;
+  }
+
+  td {
+    padding: 9px 12px;
+    border-top: 1px solid var(--line);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .r {
+    text-align: right;
+  }
+
+  .name {
+    font-weight: 600;
+  }
+
+  tr.quiet .name {
+    color: var(--muted);
+  }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .pill.in {
+    background: rgba(63, 191, 135, 0.16);
+    color: #6fd7ac;
+  }
+
+  .pill.wait {
+    background: var(--surface-2);
+    color: var(--muted);
+  }
+
+  .pill.out {
+    background: rgba(224, 102, 74, 0.16);
+    color: #f09070;
+  }
+
+  .ghost {
+    padding: 9px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink);
+    font-size: 13px;
+  }
+
+  button:not(.ghost):not(.yes):not(.no) {
+    justify-self: start;
+    padding: 10px 16px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #1a0d07;
+    font-weight: 600;
+  }
+
+  @media (max-width: 640px) {
+    .panel.claim {
       grid-template-columns: 1fr;
     }
 
-    .tiles {
-      grid-template-columns: 1fr;
+    .verdict {
+      grid-column: 1;
+      grid-row: auto;
+    }
+
+    .verdict button {
+      flex: 1;
     }
   }
 </style>
