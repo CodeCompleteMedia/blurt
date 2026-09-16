@@ -5,7 +5,6 @@
   // the correct answer until results, so this view has no secret to leak.
   import AnswerTile from '../components/AnswerTile.svelte'
   import CountdownRing from '../components/CountdownRing.svelte'
-  import DistributionBars from '../components/DistributionBars.svelte'
   import Leaderboard from '../components/Leaderboard.svelte'
   import {
     blurter,
@@ -34,6 +33,7 @@
   let limit = $derived((question?.seconds ?? 20) * 1000)
   let phase = $derived(game?.phase ?? null)
   let counting = $derived(phase === 'recall' || phase === 'question_open')
+  let totalVotes = $derived(counts.reduce((sum, n) => sum + n, 0))
 
   async function boot() {
     if (!code) {
@@ -163,11 +163,21 @@
   {:else if phase === 'results' && question}
     <section class="results">
       <div class="left">
-        <p class="eyebrow">The class said</p>
-        <DistributionBars {counts} correctIndex={question.correctIndex ?? 0} />
-        <p class="correct-line">
-          Correct: <strong>{question.choices?.[question.correctIndex] ?? '—'}</strong>
-        </p>
+        <h2 class="reveal">
+          <span class="eyebrow">The answer was</span>
+          {question.choices?.[question.correctIndex] ?? '—'}
+        </h2>
+        <div class="tiles">
+          {#each question.choices ?? [] as choice, i}
+            <AnswerTile
+              shape={shapeFor(i)}
+              text={choice}
+              state={i === question.correctIndex ? 'correct' : 'wrong'}
+              count={counts[i] ?? 0}
+              share={totalVotes ? (counts[i] ?? 0) / totalVotes : 0}
+            />
+          {/each}
+        </div>
       </div>
       <div class="right">
         <p class="eyebrow">Standings</p>
@@ -351,26 +361,28 @@
 
   .results {
     display: grid;
-    grid-template-columns: 1.2fr 1fr;
+    grid-template-columns: 1.4fr 1fr;
     gap: 40px;
+  }
+
+  .reveal {
+    display: grid;
+    gap: 6px;
+    font-family: var(--body);
+    font-size: clamp(30px, 4.2vw, 60px);
+    font-weight: 600;
+    line-height: 1.05;
+    text-transform: none;
+    text-wrap: balance;
   }
 
   .left,
   .right {
     display: grid;
-    grid-template-rows: auto 1fr auto;
-    gap: 16px;
+    grid-template-rows: auto 1fr;
+    gap: 20px;
     min-height: 0;
-  }
-
-  .correct-line {
-    margin: 0;
-    font-size: clamp(18px, 2vw, 26px);
-    color: var(--muted);
-  }
-
-  .correct-line strong {
-    color: var(--ink);
+    align-content: start;
   }
 
   .final {

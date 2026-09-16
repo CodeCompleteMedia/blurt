@@ -119,6 +119,25 @@ export async function blurter(code) {
 }
 
 /**
+ * How the caller did on the question just shown — and nobody else. Empty until
+ * the room reaches results, so nobody learns they were right while the question
+ * is still open and the person beside them is still deciding.
+ */
+export async function myResult(playerToken) {
+  const { data, error } = await db.rpc('my_result', { p_player_token: playerToken })
+  if (error) fail(error)
+  const row = data?.[0]
+  if (!row) return null
+  return {
+    answered: row.answered,
+    correct: row.correct,
+    awarded: row.awarded,
+    blurted: row.blurted,
+    streak: row.streak,
+  }
+}
+
+/**
  * The same question the wall is showing, but never withheld — the referee has
  * to know the answer while a student is saying it out loud.
  */

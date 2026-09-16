@@ -7,7 +7,7 @@
   import AnswerTile from '../components/AnswerTile.svelte'
   import Leaderboard from '../components/Leaderboard.svelte'
   import { SHAPES } from '../lib/answers.js'
-  import { blurt, fetchGame, fetchPlayers, submitAnswer, watchGame } from '../lib/api.js'
+  import { blurt, fetchGame, fetchPlayers, myResult, submitAnswer, watchGame } from '../lib/api.js'
   import { ordinal } from '../lib/ordinal.js'
   import { clearSeat, readSeat } from '../lib/session.js'
 
@@ -19,8 +19,11 @@
   let answeredIndex = $state(null)
   let busy = $state(false)
   let missed = $state(false)
+  let tooSlow = $state(false)
   let problem = $state('')
   let booting = $state(true)
+  let result = $state(null)
+  let resultKey = ''
 
   let me = $derived(players.find((player) => player.id === seat?.playerId) ?? null)
   let phase = $derived(game?.phase ?? null)
@@ -79,9 +82,12 @@
     try {
       await submitAnswer(seat.playerToken, choice)
     } catch (error) {
-      problem = error.message
       picked = null
       answeredIndex = null
+      // Missing the deadline is an ordinary thing that happens in a game, not a
+      // fault. It gets a sentence, not an error screen with a way out.
+      if (/too late|not taking/i.test(error.message)) tooSlow = true
+      else problem = error.message
     } finally {
       busy = false
     }
@@ -112,7 +118,30 @@
     if (index != null && index !== answeredIndex) {
       picked = null
       missed = false
+      tooSlow = false
     }
+  })
+
+  // Your own result, and only yours. The database returns nothing until the room
+  // reaches results, so this cannot be used to peek mid-question.
+  $effect(() => {
+    const p = game?.phase
+    const index = game?.question_index
+    if (!seat?.playerToken || (p !== 'results' && p !== 'final')) {
+      result = null
+      resultKey = ''
+      return
+    }
+    const key = `${p}:${index}`
+    if (key === resultKey) return
+    resultKey = key
+    void (async () => {
+      try {
+        result = await myResult(seat.playerToken)
+      } catch {
+        result = null
+      }
+    })()
   })
 </script>
 
@@ -157,6 +186,12 @@
       <h1 class="hush">Sit this one out</h1>
       <p class="muted">Back in on the next question.</p>
     </div>
+  {:else if tooSlow && (phase === 'question_open' || phase === 'locked')}
+    <div class="centred">
+      <p class="eyebrow">Time ran out</p>
+      <h1 class="hush">Too slow</h1>
+      <p class="muted">Next one's yours.</p>
+    </div>
   {:else if phase === 'question_open' && !locked}
     <header><span class="eyebrow">Look up at the board</span></header>
     <div class="pad">
@@ -170,10 +205,24 @@
       {#if picked != null}<p class="muted">{SHAPES[picked].label}</p>{/if}
     </div>
   {:else if phase === 'results'}
-    <div class="centred">
-      <p class="eyebrow">Your score</p>
-      <h1>{me ? me.score.toLocaleString() : '—'}</h1>
-      <p class="muted">{me ? `${ordinal(me.rank)} of ${players.length}` : ''}</p>
+    <div class="centred verdict" class:right={result?.correct} class:wrong={result && !result.correct}>
+      {#if result?.correct}
+        <p class="eyebrow">{result.blurted ? 'You blurted it' : 'Correct'}</p>
+        <h1 class="good">+{result.awarded.toLocaleString()}</h1>
+        {#if result.streak > 1}<p class="muted">{result.streak} in a row</p>{/if}
+      {:else if result?.answered}
+        <p class="eyebrow">{result.blurted ? 'Not this time' : 'Wrong answer'}</p>
+        <h1 class="bad">+0</h1>
+        <p class="muted">Look up — the answer's on the board.</p>
+      {:else}
+        <p class="eyebrow">No answer</p>
+        <h1 class="bad">+0</h1>
+        <p class="muted">Get in on the next one.</p>
+      {/if}
+      <p class="total">
+        {me ? me.score.toLocaleString() : '—'}
+        <span class="muted">· {me ? ordinal(me.rank) : '—'} of {players.length}</span>
+      </p>
     </div>
   {:else if phase === 'final'}
     <div class="final">
@@ -226,6 +275,32 @@
 
   .accent {
     color: var(--accent);
+  }
+
+  /* The one screen where the phone owes the player a plain answer: right or
+     wrong, and what it was worth. */
+  .verdict {
+    gap: 6px;
+  }
+
+  .good {
+    color: #4fd39a;
+  }
+
+  .bad {
+    color: var(--muted);
+  }
+
+  .total {
+    margin-top: 26px;
+    font-family: var(--display);
+    font-size: 30px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .total .muted {
+    font-family: var(--body);
+    font-size: 14px;
   }
 
   .hush {

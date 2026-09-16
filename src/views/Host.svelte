@@ -15,7 +15,7 @@
     rosterStats,
     watchGame,
   } from '../lib/api.js'
-  import { clockBase, remainingSeconds, ticker } from '../lib/clock.js'
+  import { clockBase, heartbeat, remainingSeconds, ticker } from '../lib/clock.js'
   import { clearHost, readHost, writeHost } from '../lib/session.js'
 
   let host = $state(null)
@@ -27,6 +27,9 @@
   let booting = $state(true)
   let problem = $state('')
   let now = $state(Date.now())
+  // Deadlines run off this, not off `now`: a teacher who switches tabs must not
+  // stall the room.
+  let beat = $state(Date.now())
   let questionBase = $state(null)
   let loadedKey = ''
   let autoLockedKey = ''
@@ -140,6 +143,8 @@
 
   $effect(() => ticker((t) => (now = t)))
 
+  $effect(() => heartbeat((t) => (beat = t)))
+
   $effect(() => {
     if (!host?.gameId) return
     const watch = watchGame({
@@ -181,11 +186,23 @@
   $effect(() => {
     if (phase !== 'recall' && phase !== 'question_open') return
     if (!questionBase || !host) return
-    if (questionBase + limit - now > 0) return
+    if (questionBase + limit - beat > 0) return
     const key = `${phase}:${game.question_index}:${questionBase}`
     if (autoLockedKey === key) return
     autoLockedKey = key
     step()
+  })
+
+  // `locked` is a beat, not a stop: "time" lands, then the answer goes up on its
+  // own. Leaving the room staring at dimmed tiles waiting for a keypress was the
+  // reason the reveal never seemed to arrive.
+  $effect(() => {
+    if (phase !== 'locked' || !host) return
+    const key = `locked:${game.question_index}`
+    if (autoLockedKey === key) return
+    autoLockedKey = key
+    const id = setTimeout(step, 1200)
+    return () => clearTimeout(id)
   })
 </script>
 

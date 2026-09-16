@@ -33,6 +33,19 @@ export function ticker(fn) {
 }
 
 /**
+ * A timer that survives a backgrounded tab.
+ *
+ * `ticker` runs on animation frames, which browsers pause outright when a tab is
+ * not visible — fine for drawing a countdown nobody is looking at, useless for
+ * deciding that a deadline has passed. Anything that must happen on time, whether
+ * or not the teacher is looking at this tab, belongs here.
+ */
+export function heartbeat(fn, ms = 1000) {
+  const id = setInterval(() => fn(Date.now()), ms)
+  return () => clearInterval(id)
+}
+
+/**
  * Which timestamp to count down from.
  *
  * Normally the server's `question_started_at`, so every screen in the room

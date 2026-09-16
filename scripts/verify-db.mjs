@@ -105,6 +105,11 @@ check('correct answer withheld while open', open.data?.[0]?.q_correct_index === 
 const dist = await db.rpc('distribution', { p_code: code })
 check('distribution empty before results', (dist.data?.length ?? 0) === 0)
 
+// A player learning they were right mid-question could tell the person next to
+// them, so their own result is withheld until the room reaches results too.
+const peekMine = await db.rpc('my_result', { p_player_token: rival[0].player_token })
+check('own result withheld before results', (peekMine.data?.length ?? 0) === 0)
+
 const notHost = await db.rpc('advance_game', { p_host_token: FORGED })
 check('a student cannot advance the game', notHost.error !== null, notHost.error?.message)
 
@@ -117,6 +122,14 @@ check('correct answer released at results', Number.isInteger(shown.data?.[0]?.q_
 
 const after = await db.rpc('distribution', { p_code: code })
 check('distribution appears at results', (after.data?.length ?? 0) === 4)
+
+const mine = await db.rpc('my_result', { p_player_token: rival[0].player_token })
+check('own result released at results',
+  mine.data?.[0]?.answered === true && typeof mine.data?.[0]?.correct === 'boolean',
+  `correct ${mine.data?.[0]?.correct}, awarded ${mine.data?.[0]?.awarded}`)
+
+const notMine = await db.rpc('my_result', { p_player_token: FORGED })
+check('a forged token gets no result', notMine.error !== null, notMine.error?.message)
 
 console.log(`\n  ${failures ? `${failures} failed` : 'all checks passed'}  (test room ${code})\n`)
 process.exit(failures ? 1 : 0)
