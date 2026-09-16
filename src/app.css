@@ -1,7 +1,6 @@
 /* Latin-only files: the content is English, and this keeps the build from
    emitting subsets nothing will ever request. */
 @import '@fontsource/londrina-solid/latin-400.css';
-@import '@fontsource/londrina-solid/latin-900.css';
 
 :root {
   --ground: #10151b;
@@ -12,9 +11,9 @@
   --line: rgba(241, 245, 248, 0.12);
   --accent: #ff6e45;
 
-  /* Londrina Solid ships 100/300/400/900 only. Anything asking for 700 or 800
-     gets a synthesised bold, which smears a marker face — so the scale below is
-     400 for everything except the moments that should shout. */
+  /* Londrina Solid ships 100/300/400/900 only, and 400 is the heaviest this
+     design goes — the face is already solid at that weight, and 900 closed up
+     the counters at projector sizes. One weight, one file. */
   --display: 'Londrina Solid', 'Trebuchet MS', sans-serif;
   --body: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
@@ -49,10 +48,6 @@ h3 {
   font-weight: 400;
   line-height: 0.95;
   text-transform: uppercase;
-}
-
-h1 {
-  font-weight: 900;
 }
 
 button {

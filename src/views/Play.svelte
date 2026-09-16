@@ -336,7 +336,7 @@
     color: #1a0d07;
     font-family: var(--display);
     font-size: clamp(40px, 12vw, 56px);
-    font-weight: 900;
+    font-weight: 400;
     letter-spacing: 0.01em;
     box-shadow: 0 10px 0 #a33d22;
     transition: transform 0.08s ease, box-shadow 0.08s ease;
