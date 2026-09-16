@@ -50,8 +50,8 @@
 
   .count {
     font-family: var(--display);
-    font-size: 48px;
-    font-weight: 700;
+    font-size: 44px;
+    font-weight: 400;
     font-variant-numeric: tabular-nums;
   }
 </style>

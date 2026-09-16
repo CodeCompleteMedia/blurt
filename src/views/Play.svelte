@@ -25,7 +25,13 @@
   let result = $state(null)
   let resultKey = ''
 
-  let me = $derived(players.find((player) => player.id === seat?.playerId) ?? null)
+  // By id normally; by name for a seat written before ids were stored, so an
+  // older phone shows a score rather than a dash.
+  let me = $derived(
+    players.find((player) => player.id === seat?.playerId) ??
+      players.find((player) => player.name === seat?.name) ??
+      null,
+  )
   let phase = $derived(game?.phase ?? null)
   let locked = $derived(picked != null && answeredIndex === game?.question_index)
 
@@ -270,7 +276,7 @@
   }
 
   h1 {
-    font-size: clamp(48px, 18vw, 80px);
+    font-size: clamp(42px, 14vw, 68px);
   }
 
   .accent {
@@ -329,9 +335,9 @@
     background: var(--accent);
     color: #1a0d07;
     font-family: var(--display);
-    font-size: clamp(44px, 14vw, 64px);
-    font-weight: 800;
-    letter-spacing: 0.04em;
+    font-size: clamp(40px, 12vw, 56px);
+    font-weight: 900;
+    letter-spacing: 0.01em;
     box-shadow: 0 10px 0 #a33d22;
     transition: transform 0.08s ease, box-shadow 0.08s ease;
   }

@@ -167,7 +167,7 @@
           <span class="eyebrow">The answer was</span>
           {question.choices?.[question.correctIndex] ?? '—'}
         </h2>
-        <div class="tiles">
+        <div class="tiles result-tiles">
           {#each question.choices ?? [] as choice, i}
             <AnswerTile
               shape={shapeFor(i)}
@@ -239,8 +239,8 @@
   }
 
   .code-big {
-    font-size: clamp(90px, 20vw, 260px);
-    letter-spacing: 0.02em;
+    font-size: clamp(72px, 15vw, 200px);
+    letter-spacing: 0.01em;
   }
 
   .waiting {
@@ -300,7 +300,7 @@
   }
 
   .who {
-    font-size: clamp(64px, 14vw, 180px);
+    font-size: clamp(56px, 11vw, 140px);
     color: var(--accent);
   }
 
@@ -359,6 +359,14 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* At results the tiles are the chart, so they take the room rather than
+     floating in the middle of it. */
+  .result-tiles {
+    align-content: stretch;
+    grid-auto-rows: 1fr;
+    height: 100%;
+  }
+
   .results {
     display: grid;
     grid-template-columns: 1.4fr 1fr;
@@ -395,7 +403,7 @@
   }
 
   .final h1 {
-    font-size: clamp(52px, 9vw, 120px);
+    font-size: clamp(46px, 7.5vw, 100px);
   }
 
   @media (max-width: 900px) {

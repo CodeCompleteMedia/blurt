@@ -344,7 +344,7 @@
   .code {
     font-family: var(--display);
     font-size: 30px;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.06em;
   }
 
   .secs {

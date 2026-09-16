@@ -1,4 +1,7 @@
-@import '@fontsource-variable/big-shoulders-display';
+/* Latin-only files: the content is English, and this keeps the build from
+   emitting subsets nothing will ever request. */
+@import '@fontsource/londrina-solid/latin-400.css';
+@import '@fontsource/londrina-solid/latin-900.css';
 
 :root {
   --ground: #10151b;
@@ -9,7 +12,10 @@
   --line: rgba(241, 245, 248, 0.12);
   --accent: #ff6e45;
 
-  --display: 'Big Shoulders Display Variable', 'Arial Narrow', sans-serif;
+  /* Londrina Solid ships 100/300/400/900 only. Anything asking for 700 or 800
+     gets a synthesised bold, which smears a marker face — so the scale below is
+     400 for everything except the moments that should shout. */
+  --display: 'Londrina Solid', 'Trebuchet MS', sans-serif;
   --body: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   font-family: var(--body);
@@ -40,9 +46,13 @@ h2,
 h3 {
   margin: 0;
   font-family: var(--display);
-  font-weight: 700;
+  font-weight: 400;
   line-height: 0.95;
   text-transform: uppercase;
+}
+
+h1 {
+  font-weight: 900;
 }
 
 button {
