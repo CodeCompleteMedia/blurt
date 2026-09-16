@@ -47,7 +47,7 @@
   }
 </script>
 
-<main>
+<main class="surface">
   <div class="card">
     <h1>blurt</h1>
 
@@ -89,7 +89,6 @@
     display: grid;
     place-items: center;
     height: 100%;
-    padding: 24px;
   }
 
   .card {

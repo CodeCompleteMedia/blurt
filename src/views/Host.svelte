@@ -208,7 +208,7 @@
 
 <svelte:window {onkeydown} />
 
-<main class="dash">
+<main class="dash surface">
   {#if booting}
     <p class="muted">Opening a room…</p>
   {:else if problem}
@@ -317,7 +317,6 @@
     gap: 14px;
     align-content: start;
     height: 100%;
-    padding: 20px clamp(16px, 3vw, 32px);
     max-width: 1100px;
     margin: 0 auto;
     width: 100%;

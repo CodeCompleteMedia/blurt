@@ -98,7 +98,7 @@
   })
 </script>
 
-<main class="stage">
+<main class="stage surface">
   <header>
     <span class="eyebrow">blurt</span>
     {#if game && game.question_index >= 0 && phase !== 'final'}
@@ -201,7 +201,6 @@
     grid-template-rows: auto 1fr;
     gap: 24px;
     height: 100%;
-    padding: 28px clamp(24px, 4vw, 56px) 32px;
   }
 
   header {

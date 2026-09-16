@@ -151,7 +151,7 @@
   })
 </script>
 
-<main>
+<main class="surface">
   {#if booting}
     <div class="centred"><p class="muted">Finding your seat…</p></div>
   {:else if problem}
@@ -248,7 +248,6 @@
     grid-template-rows: auto 1fr;
     gap: 14px;
     height: 100%;
-    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
   }
 
   header {

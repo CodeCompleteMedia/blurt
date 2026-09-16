@@ -15,6 +15,12 @@
      design goes — the face is already solid at that weight, and 900 closed up
      the counters at projector sizes. One weight, one file. */
   --display: 'Londrina Solid', 'Trebuchet MS', sans-serif;
+
+  /* One gutter for every surface. These were 16, 20, 24 and 28 across the four
+     views, which reads as carelessness on a phone where two of them are a swipe
+     apart. */
+  --gutter: clamp(16px, 3vw, 40px);
+  --gutter-block: 20px;
   --body: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   font-family: var(--body);
@@ -70,6 +76,24 @@ button {
 :focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 3px;
+}
+
+/*
+ * Every full-screen surface. The safe-area insets are added rather than
+ * substituted so a notched phone gets the gutter *plus* whatever the hardware
+ * needs — including left and right, which matter the moment a student turns
+ * their phone sideways.
+ */
+.surface {
+  /* Plain fallback first: an unsupported env() invalidates the whole declaration
+     it sits in, which would drop the gutter to zero rather than degrade. */
+  padding: var(--gutter-block) var(--gutter);
+  padding-block:
+    calc(var(--gutter-block) + env(safe-area-inset-top, 0px))
+    calc(var(--gutter-block) + env(safe-area-inset-bottom, 0px));
+  padding-inline:
+    calc(var(--gutter) + env(safe-area-inset-left, 0px))
+    calc(var(--gutter) + env(safe-area-inset-right, 0px));
 }
 
 /* Shared bits */
