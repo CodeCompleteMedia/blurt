@@ -1,0 +1,91 @@
+@import '@fontsource-variable/big-shoulders-display';
+
+:root {
+  --ground: #10151b;
+  --surface: #19212a;
+  --surface-2: #222c37;
+  --ink: #f1f5f8;
+  --muted: #90a1b2;
+  --line: rgba(241, 245, 248, 0.12);
+  --accent: #ff6e45;
+
+  --display: 'Big Shoulders Display Variable', 'Arial Narrow', sans-serif;
+  --body: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.5;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--ground);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 700;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Shared bits */
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.demo-flag {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 10;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
