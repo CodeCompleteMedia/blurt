@@ -23,7 +23,6 @@
     updateGameSettings,
     watchGame,
   } from '../lib/api.js'
-  import { auth, signOut } from '../lib/auth.svelte.js'
   import { clockBase, heartbeat, remainingSeconds, ticker } from '../lib/clock.js'
   import { clearHost, readHost, readSettings, writeHost, writeSettings } from '../lib/session.js'
 
@@ -44,6 +43,7 @@
   let autoLockedKey = ''
   // No room yet: the teacher is choosing which quiz to run.
   let picking = $state(false)
+  let notice = $state('')
   let quizzes = $state([])
   // Kept so a new room can take the projector with it. Lost on a host refresh,
   // which is why /present also watches for the room closing on its own.
@@ -138,17 +138,36 @@
       const saved = readHost()
       if (saved?.code) {
         const row = await fetchGame(saved.code)
-        if (row && row.phase !== 'final') {
+        if (row && row.phase !== 'final' && !row.closed_at) {
           host = saved
           game = row
           quizTitle = await fetchQuizTitle(row.quiz_id)
+        } else {
+          // Finished or closed: forget it, or the bar goes on advertising a room
+          // that no longer exists.
+          clearHost()
         }
       }
+      const wanted = new URLSearchParams(window.location.search).get('quiz')
       if (host) {
         roster = await rosterStats(host.hostToken)
+        // Asked to host one quiz while a room on another is still open. Closing a
+        // live room is not something to do on a guess, so say so and let them.
+        if (wanted && wanted !== game.quiz_id) {
+          notice = `Room ${host.code} is still open on “${quizTitle}”. Press R to close it, then choose the other quiz.`
+        }
+        if (wanted) history.replaceState(null, '', '/host')
       } else {
         quizzes = await listQuizzes()
-        picking = true
+        // Arriving from "Host this quiz" in the editor: skip the list.
+        const quiz = wanted && quizzes.find((q) => q.id === wanted && q.questionCount > 0)
+        if (quiz) {
+          history.replaceState(null, '', '/host')
+          await startNewGame(quiz)
+          roster = await rosterStats(host.hostToken)
+        } else {
+          picking = true
+        }
       }
     } catch (error) {
       problem = error.message
@@ -359,11 +378,9 @@
     <div class="picker">
       <header>
         <div class="grow">
-          <span class="eyebrow">Signed in as {auth.user?.email}</span>
+          <span class="eyebrow">Open a room</span>
           <strong class="code">Which quiz?</strong>
         </div>
-        <a class="ghost" href="/edit">Edit quizzes</a>
-        <button class="ghost" onclick={signOut}>Sign out</button>
       </header>
 
       {#if quizzes.length}
@@ -515,6 +532,13 @@
       </div>
     {/if}
 
+    {#if notice}
+      <div class="panel warn">
+        <p>{notice}</p>
+        <button class="ghost" onclick={() => (notice = '')}>Carry on with this room</button>
+      </div>
+    {/if}
+
     {#if phase === 'blurt_claimed'}
       <!-- The one moment the teacher has to act rather than observe. -->
       <div class="panel claim">
@@ -621,11 +645,13 @@
 </main>
 
 <style>
+  /* A column rather than fixed grid rows: which panels are present changes with
+     the phase, and a row template silently hands the stretchy row to whatever
+     happens to land fifth. */
   .dash {
-    display: grid;
-    grid-template-rows: auto auto auto auto 1fr auto;
+    display: flex;
+    flex-direction: column;
     gap: 14px;
-    align-content: start;
     height: 100%;
     max-width: 1100px;
     margin: 0 auto;
@@ -917,8 +943,9 @@
   }
 
   .scroll {
+    flex: 1;
     overflow: auto;
-    min-height: 0;
+    min-height: 120px;
     border: 1px solid var(--line);
     border-radius: 10px;
   }

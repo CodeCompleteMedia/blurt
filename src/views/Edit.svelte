@@ -5,7 +5,7 @@
   // right on its card, instead of failing quietly on the way out.
   import QuestionCard from '../components/QuestionCard.svelte'
   import { copySampleQuiz, duplicateQuiz, listQuizzes } from '../lib/api.js'
-  import { auth, signOut } from '../lib/auth.svelte.js'
+  import { auth } from '../lib/auth.svelte.js'
   import { questionsFromText } from '../lib/csv.js'
   import { shrinkImage } from '../lib/image.js'
   import { KINDS, blankQuestion, problemWith } from '../lib/question.js'
@@ -209,11 +209,9 @@
   {:else if !quizId}
     <header>
       <div class="grow">
-        <span class="eyebrow">Signed in as {auth.user?.email}</span>
         <h1>Your quizzes</h1>
       </div>
-      <a class="ghost" href="/host">Host a room</a>
-      <button class="ghost" onclick={signOut}>Sign out</button>
+      <button class="primary" onclick={newQuiz}>New quiz</button>
     </header>
 
     {#if problem}<p class="problem" role="alert">{problem}</p>{/if}
@@ -225,22 +223,23 @@
             <strong>{q.title}</strong>
             <span class="muted">{q.questionCount} question{q.questionCount === 1 ? '' : 's'}</span>
           </a>
+          {#if q.questionCount > 0}<a class="link" href="/host?quiz={q.id}">Host</a>{/if}
           <button class="link" onclick={async () => { await duplicateQuiz(q.id); await loadList() }}>Duplicate</button>
           <button class="link" class:danger={confirmingQuiz === q.id} onclick={() => removeQuiz(q.id)}>
-            {confirmingQuiz === q.id ? 'Delete for good?' : 'Delete'}
+            {confirmingQuiz === q.id ? 'Sure?' : 'Delete'}
           </button>
         </li>
       {/each}
     </ul>
 
-    <div class="row">
-      <button class="primary" onclick={newQuiz}>New quiz</button>
-      {#if !quizzes.length}
+    {#if !quizzes.length}
+      <div class="empty">
+        <p class="muted">Nothing here yet. Write one from scratch, or start from five sample questions and change them.</p>
         <button class="ghost" onclick={async () => { await copySampleQuiz(); await loadList() }}>
           Start from the sample quiz
         </button>
-      {/if}
-    </div>
+      </div>
+    {/if}
   {:else if quiz}
     <header>
       <a class="ghost" href="/edit">← Quizzes</a>
@@ -256,7 +255,11 @@
       <span class="save" class:busy={pending > 0}>
         {pending > 0 ? 'Saving…' : drafts ? `${drafts} not saved yet` : 'All saved'}
       </span>
-      <a class="ghost" href="/host">Host</a>
+      <!-- Straight into a room with this quiz, once there is something to ask and
+           nothing left unsaved. -->
+      {#if questions.some((q) => q.id) && pending === 0 && !drafts}
+        <a class="ghost" href="/host?quiz={quiz.id}">Host this quiz</a>
+      {/if}
     </header>
 
     {#if problem}<p class="problem" role="alert">{problem}</p>{/if}
@@ -342,7 +345,6 @@
     max-width: 900px;
     margin: 0 auto;
     width: 100%;
-    min-height: 100%;
   }
 
   header {
@@ -418,6 +420,15 @@
   .primary:disabled {
     background: var(--surface-2);
     color: var(--muted);
+  }
+
+  .empty {
+    display: grid;
+    gap: 12px;
+    justify-items: start;
+    padding: 18px;
+    border: 1px dashed var(--line);
+    border-radius: 12px;
   }
 
   .row {

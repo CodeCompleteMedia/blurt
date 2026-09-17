@@ -2,6 +2,7 @@
   import { configured } from './lib/supabase.js'
   import { routeFor } from './lib/router.js'
   import AuthGate from './components/AuthGate.svelte'
+  import TeacherShell from './components/TeacherShell.svelte'
   import Edit from './views/Edit.svelte'
   import Host from './views/Host.svelte'
   import Join from './views/Join.svelte'
@@ -24,11 +25,15 @@
   </main>
 {:else if route.view === 'host'}
   <AuthGate>
-    <Host />
+    <TeacherShell current="host">
+      <Host />
+    </TeacherShell>
   </AuthGate>
 {:else if route.view === 'edit'}
   <AuthGate>
-    <Edit quizId={route.quizId} />
+    <TeacherShell current="edit">
+      <Edit quizId={route.quizId} />
+    </TeacherShell>
   </AuthGate>
 {:else if route.view === 'present'}
   <Present code={route.code} />

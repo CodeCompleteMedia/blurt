@@ -85,13 +85,23 @@
       <p class="problem" role="alert">{problem}</p>
     {/if}
   </div>
+
+  <!-- The only way onto the teacher's side from here, kept out of a student's way. -->
+  <a class="teacher" href="/host">Teacher? Open a room</a>
 </main>
 
 <style>
   main {
     display: grid;
+    grid-template-rows: 1fr auto;
     place-items: center;
     height: 100%;
+  }
+
+  .teacher {
+    color: var(--muted);
+    font-size: 13px;
+    text-underline-offset: 3px;
   }
 
   .card {
