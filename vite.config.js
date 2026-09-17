@@ -11,10 +11,13 @@ import { defineConfig } from 'vite'
  * before the first paint.
  *
  * The hints cannot be hand-written into index.html because Vite hashes the font
- * filenames at build time, so they are injected from the real bundle. Only the
- * latin subsets are hinted: the others are emitted by Fontsource's stylesheet but
- * no `unicode-range` in this app will ever request them, and preloading a file
- * nothing asks for is worse than not preloading at all.
+ * filenames at build time, so they are injected from the real bundle.
+ *
+ * The pattern matches every latin .woff2 the build emits, which today is exactly
+ * the two faces src/app.css declares. If extended latin is ever added back — see
+ * "Decisions worth revisiting" in the README — it will be preloaded automatically
+ * unless this pattern is narrowed, and preloading 19KB for a handful of glyphs is
+ * a separate decision from bundling it.
  */
 function preloadFonts(match = /latin[^/]*\.woff2$/) {
   return {

@@ -8,6 +8,12 @@
  *
  * Rubik's variable file covers 300-900 in one download, which is every body
  * weight here (400-700).
+ *
+ * NOTE — basic latin only (U+0000-00FF: é, ñ, ü, ö, å, ç). Extended latin is not
+ * bundled, so Łukasz, Dvořák and Nguyễn get those letters from the system
+ * fallback mid-word. Deliberate: latin-ext is another 19KB for glyphs most
+ * classes never type. See "Decisions worth revisiting" in the README for how to
+ * add it back — one @font-face, plus a choice about preloading.
  */
 @font-face {
   font-family: 'Londrina Solid';

@@ -104,3 +104,35 @@ Run the second one after every migration. The policies are right today; the risk
 is the later change that quietly loosens one. A convenience `select` on
 `questions` would hand every phone the answer key, and nothing in `npm test`
 would notice.
+
+## Decisions worth revisiting
+
+Things deliberately left out, with what it would cost to put them back. Each one
+was a judgement call, not an oversight.
+
+### Extended latin is not bundled
+
+The build ships **basic latin only** (`U+0000-00FF`), which covers é, ñ, ü, ö, å
+and ç — most Western European names render entirely in Rubik.
+
+It does **not** cover extended latin (`U+0100+`). A student called Łukasz, Dvořák
+or Nguyễn gets those particular letters from the system fallback while the rest of
+their name is Rubik. Mixed within one word, that reads as a bug rather than as a
+fallback — and it is a student's own name, which is the worst place to look
+careless.
+
+**Why it is out:** `rubik-latin-ext-wght-normal.woff2` is another 19KB. Preloaded,
+every phone in the room pays for it on every first load, for a handful of glyphs
+most classes never type. Loaded but not preloaded, the affected names visibly swap
+a beat after the rest of the page.
+
+**To put it back**, in `src/app.css` add a second `@font-face` for
+`@fontsource-variable/rubik/files/rubik-latin-ext-wght-normal.woff2`, carrying the
+`unicode-range` from `@fontsource-variable/rubik/wght.css` so the browser only
+fetches it when an extended character actually appears. Then decide separately
+whether `vite.config.js` should preload it — its pattern currently matches every
+emitted `.woff2`, so bundling it is enough to preload it, and excluding it is the
+extra step.
+
+**Worth reversing if:** a class roster has names that need it. One student is
+reason enough.
