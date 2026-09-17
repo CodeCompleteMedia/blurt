@@ -119,11 +119,9 @@ check('a student cannot advance the game', notHost.error !== null, notHost.error
 const beforeLast = await db.from('games').select('phase').eq('code', code).maybeSingle()
 await db.rpc('submit_answer', { p_player_token: rival[0].player_token, p_choice: 0 })
 const afterLast = await db.from('games').select('phase').eq('code', code).maybeSingle()
-check('the last answer closes the question early',
-  beforeLast.data?.phase === 'question_open' && afterLast.data?.phase === 'locked',
+check('the last answer reveals straight away',
+  beforeLast.data?.phase === 'question_open' && afterLast.data?.phase === 'results',
   `${beforeLast.data?.phase} -> ${afterLast.data?.phase}`)
-
-await db.rpc('advance_game', { p_host_token: hostToken })
 
 const shown = await db.rpc('current_question', { p_code: code })
 check('correct answer released at results', Number.isInteger(shown.data?.[0]?.q_correct_index))

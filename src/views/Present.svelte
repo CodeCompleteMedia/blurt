@@ -35,8 +35,11 @@
   let closed = $derived(Boolean(game?.closed_at))
   let counting = $derived(phase === 'recall' || phase === 'question_open')
   let totalVotes = $derived(counts.reduce((sum, n) => sum + n, 0))
-  // The room beat the clock rather than running out of it — worth saying, because
-  // "Time" over a question everyone answered reads as a cut-off.
+  // Only reachable if the "All in" beat is restored — an all-in question now goes
+  // straight to the reveal, so `locked` is currently only ever reached by the
+  // clock running out. Kept because the beat is one line away in
+  // 0011_all_in_reveals.sql, and "Time" over a question everyone answered would
+  // read as a cut-off.
   let allIn = $derived(players.length > 0 && (game?.answered_count ?? 0) >= players.length)
 
   async function boot() {
