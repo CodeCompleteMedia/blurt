@@ -28,9 +28,17 @@
   // Under half the room is the line worth drawing: fewer than half got it, so it
   // is worth saying again rather than worth moving on from.
   let bombed = $derived((report?.questions ?? []).filter((q) => q.answered > 0 && q.percent < 50))
-  let unanimousWrong = $derived(
-    bombed.filter((q) => q.commonWrongCount >= Math.max(2, Math.ceil(q.answered * 0.6))),
-  )
+  // "Most of them chose X" and "they scattered" are both claims about a
+  // distribution. Under three answers there is no distribution to describe —
+  // a single student picking one wrong answer is unanimous and scattered at
+  // once — so those rooms just get told what was put instead.
+  function missNote(q) {
+    if (!q.commonWrong) return ''
+    if (q.answered < 3) return `Answered “${q.commonWrong}”.`
+    if (q.commonWrongCount >= Math.max(2, Math.ceil(q.answered * 0.6)))
+      return `Most of them chose “${q.commonWrong}” — worth checking the question, not just the topic.`
+    return `They scattered; “${q.commonWrong}” was the most common miss.`
+  }
 
   async function remove(id) {
     if (confirming !== id) {
@@ -88,7 +96,9 @@
               <strong>{g.quizTitle}</strong>
               <span class="muted">
                 {when(g.playedAt)} · {g.players} student{g.players === 1 ? '' : 's'} ·
-                {#if g.finished}all {g.total} questions{:else}stopped after {g.asked} of {g.total}{/if}
+                {#if g.finished}all {g.total} questions
+                {:else if g.asked >= g.total}all {g.total} questions, left open
+                {:else}stopped after {g.asked} of {g.total}{/if}
                 {#if g.topName} · {g.topName} won{/if}
               </span>
             </a>
@@ -114,6 +124,8 @@
           {report.summary.players} student{report.summary.players === 1 ? '' : 's'} ·
           {#if report.summary.finished}
             all {report.summary.total} questions
+          {:else if report.summary.asked >= report.summary.total}
+            all {report.summary.total} questions, left open
           {:else}
             stopped after {report.summary.asked} of {report.summary.total}
           {/if}
@@ -140,13 +152,7 @@
               <span class="pc">{q.percent}%</span>
               <span class="what">
                 {q.text}
-                {#if q.commonWrong}
-                  <em>
-                    {unanimousWrong.includes(q)
-                      ? `Most of them chose “${q.commonWrong}” — worth checking the question, not just the topic.`
-                      : `They scattered; “${q.commonWrong}” was the most common miss.`}
-                  </em>
-                {/if}
+                {#if q.commonWrong}<em>{missNote(q)}</em>{/if}
               </span>
             </li>
           {/each}
