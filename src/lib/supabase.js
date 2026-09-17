@@ -17,3 +17,10 @@ export const db = configured
       auth: { persistSession: true, autoRefreshToken: true },
     })
   : null
+
+// Rooms are watched on a *private* Broadcast channel, so delivery is checked
+// against the policy on realtime.messages. That check needs a token on the
+// socket, and a student never signs in — without this they get no token at all
+// and every room silently falls back to the poll. Harmless for the teacher: the
+// SDK swaps in their session token once they sign in.
+if (db) db.realtime.setAuth(key)
