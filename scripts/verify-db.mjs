@@ -179,5 +179,41 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
   check('nobody can join a closed room', lateJoin.error !== null, lateJoin.error?.message)
 }
 
+// Settings are rules, so they are enforced where a client cannot reach them.
+{
+  const notHost = await db.rpc('update_game_settings', {
+    p_host_token: FORGED,
+    p_blurt_enabled: false,
+  })
+  check('a student cannot change the settings', notHost.error !== null, notHost.error?.message)
+
+  // Blurting off: a question opens with its choices up, no recall window.
+  const { data: m4 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  await db.rpc('update_game_settings', { p_host_token: m4[0].host_token, p_blurt_enabled: false })
+  await db.rpc('advance_game', { p_host_token: m4[0].host_token })
+  const noBlurt = await db.from('games').select('phase').eq('code', m4[0].code).maybeSingle()
+  check('with blurting off a question opens straight into its choices',
+    noBlurt.data?.phase === 'question_open', noBlurt.data?.phase)
+
+  // Reveal pace off: all-in stops on the beat instead of revealing.
+  const { data: m5 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  await db.rpc('update_game_settings', { p_host_token: m5[0].host_token, p_reveal_immediately: false })
+  const { data: solo } = await db.rpc('join_game', { p_code: m5[0].code, p_name: 'Solo' })
+  await db.rpc('advance_game', { p_host_token: m5[0].host_token })
+  await db.rpc('advance_game', { p_host_token: m5[0].host_token })
+  await db.rpc('submit_answer', { p_player_token: solo[0].player_token, p_choice: 0 })
+  const paused = await db.from('games').select('phase').eq('code', m5[0].code).maybeSingle()
+  check('with the pause on, all-in waits on the beat', paused.data?.phase === 'locked',
+    paused.data?.phase)
+
+  // The recall override has to reach the screens, not just the deadline.
+  const { data: m6 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  await db.rpc('update_game_settings', { p_host_token: m6[0].host_token, p_recall_seconds: 20 })
+  await db.rpc('advance_game', { p_host_token: m6[0].host_token })
+  const seen = await db.rpc('current_question', { p_code: m6[0].code })
+  check('the recall window the screens count down is the one enforced',
+    seen.data?.[0]?.q_seconds === 20, `${seen.data?.[0]?.q_seconds}s`)
+}
+
 console.log(`\n  ${failures ? `${failures} failed` : 'all checks passed'}  (test room ${code})\n`)
 process.exit(failures ? 1 : 0)

@@ -92,6 +92,19 @@ export async function submitAnswer(playerToken, choice) {
   if (error) fail(error)
 }
 
+/** How the teacher wants this round to run. Takes effect from the next question. */
+export async function updateGameSettings(hostToken, settings) {
+  const { error } = await db.rpc('update_game_settings', {
+    p_host_token: hostToken,
+    p_blurt_enabled: settings.blurtEnabled,
+    p_reveal_immediately: settings.revealImmediately,
+    p_auto_next_seconds: settings.autoNextSeconds,
+    p_recall_seconds: settings.recallSeconds,
+    p_allow_late_join: settings.allowLateJoin,
+  })
+  if (error) fail(error)
+}
+
 /** Ends a room. The wall and the phones are watching for this. */
 export async function closeGame(hostToken) {
   const { error } = await db.rpc('close_game', { p_host_token: hostToken })

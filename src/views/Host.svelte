@@ -14,10 +14,11 @@
     hostQuestion,
     judgeBlurt,
     rosterStats,
+    updateGameSettings,
     watchGame,
   } from '../lib/api.js'
   import { clockBase, heartbeat, remainingSeconds, ticker } from '../lib/clock.js'
-  import { clearHost, readHost, writeHost } from '../lib/session.js'
+  import { clearHost, readHost, readSettings, writeHost, writeSettings } from '../lib/session.js'
 
   let host = $state(null)
   let game = $state(null)
@@ -37,6 +38,24 @@
   // Kept so a new room can take the projector with it. Lost on a host refresh,
   // which is why /present also watches for the room closing on its own.
   let projector = null
+  let settings = $state(readSettings())
+  let showSettings = $state(false)
+  let autoNextKey = ''
+
+  const RECALL_CHOICES = [5, 8, 12, 15, 20, 30]
+  const AUTO_NEXT_CHOICES = [0, 3, 5, 8, 12]
+
+  async function applySettings(patch) {
+    settings = { ...settings, ...patch }
+    writeSettings(settings)
+    if (!host) return
+    try {
+      await updateGameSettings(host.hostToken, settings)
+      game = await fetchGame(host.code)
+    } catch (error) {
+      problem = error.message
+    }
+  }
 
   let phase = $derived(game?.phase ?? null)
   let limit = $derived(
@@ -68,6 +87,8 @@
     if (!quiz) throw new Error('No quiz in the database. Run `npx supabase db push`.')
     quizTitle = quiz.title
     const { code, hostToken } = await createGame(quiz.id)
+    // Carry this teacher's preferences into the new room before anyone joins.
+    await updateGameSettings(hostToken, settings)
     const row = await fetchGame(code)
     host = { code, hostToken, gameId: row.id }
     writeHost(host)
@@ -215,6 +236,18 @@
     step()
   })
 
+  // Move on without a keypress, for a teacher who would rather not stand at the
+  // laptop. Off by default: most want to talk over the results.
+  $effect(() => {
+    const seconds = game?.auto_next_seconds ?? 0
+    if (phase !== 'results' || seconds <= 0 || !host) return
+    const key = `next:${game.question_index}`
+    if (autoNextKey === key) return
+    autoNextKey = key
+    const id = setTimeout(step, seconds * 1000)
+    return () => clearTimeout(id)
+  })
+
   // `locked` is a beat, not a stop: "time" lands, then the answer goes up on its
   // own. Leaving the room staring at dimmed tiles waiting for a keypress was the
   // reason the reveal never seemed to arrive.
@@ -255,10 +288,84 @@
         <span class="eyebrow">Quiz</span>
         <strong>{quizTitle}</strong>
       </div>
+      <button class="ghost" onclick={() => (showSettings = !showSettings)} aria-expanded={showSettings}>
+        Settings
+      </button>
       <button class="ghost" onclick={showProjector}>
         Open projector ↗
       </button>
     </header>
+
+    {#if showSettings}
+      <div class="panel settings">
+        <div class="setting">
+          <div>
+            <strong>Blurt round</strong>
+            <span>Each question opens with its choices hidden.</span>
+          </div>
+          <button
+            class="toggle" class:on={settings.blurtEnabled}
+            aria-pressed={settings.blurtEnabled}
+            onclick={() => applySettings({ blurtEnabled: !settings.blurtEnabled })}
+          >{settings.blurtEnabled ? 'On' : 'Off'}</button>
+        </div>
+
+        <div class="setting" class:disabled={!settings.blurtEnabled}>
+          <div>
+            <strong>Recall window</strong>
+            <span>How long the room gets before the choices appear.</span>
+          </div>
+          <select
+            value={settings.recallSeconds}
+            disabled={!settings.blurtEnabled}
+            onchange={(e) => applySettings({ recallSeconds: Number(e.currentTarget.value) })}
+          >
+            {#each RECALL_CHOICES as n}<option value={n}>{n}s</option>{/each}
+          </select>
+        </div>
+
+        <div class="setting">
+          <div>
+            <strong>Reveal when everyone's in</strong>
+            <span>Straight to the answer, or pause on "All in" first.</span>
+          </div>
+          <button
+            class="toggle" class:on={settings.revealImmediately}
+            aria-pressed={settings.revealImmediately}
+            onclick={() => applySettings({ revealImmediately: !settings.revealImmediately })}
+          >{settings.revealImmediately ? 'Straight away' : 'Pause first'}</button>
+        </div>
+
+        <div class="setting">
+          <div>
+            <strong>Move on by itself</strong>
+            <span>Advance from the results screen without a keypress.</span>
+          </div>
+          <select
+            value={settings.autoNextSeconds}
+            onchange={(e) => applySettings({ autoNextSeconds: Number(e.currentTarget.value) })}
+          >
+            {#each AUTO_NEXT_CHOICES as n}
+              <option value={n}>{n === 0 ? 'Wait for me' : `After ${n}s`}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="setting">
+          <div>
+            <strong>Late join</strong>
+            <span>Let someone in after the first question has started.</span>
+          </div>
+          <button
+            class="toggle" class:on={settings.allowLateJoin}
+            aria-pressed={settings.allowLateJoin}
+            onclick={() => applySettings({ allowLateJoin: !settings.allowLateJoin })}
+          >{settings.allowLateJoin ? 'On' : 'Off'}</button>
+        </div>
+
+        <p class="note">Changes apply from the next question, and are remembered for your next room.</p>
+      </div>
+    {/if}
 
     {#if phase === 'blurt_claimed'}
       <!-- The one moment the teacher has to act rather than observe. -->
@@ -327,7 +434,7 @@
     {/if}
 
     <footer class="eyebrow">
-      Space advances · Y/N judges a blurt · P opens the projector · R new room
+      Space advances · Y/N judges a blurt · S settings · P projector · R new room
     </footer>
   {/if}
 </main>
@@ -335,7 +442,7 @@
 <style>
   .dash {
     display: grid;
-    grid-template-rows: auto auto auto 1fr auto;
+    grid-template-rows: auto auto auto auto 1fr auto;
     gap: 14px;
     align-content: start;
     height: 100%;
@@ -454,6 +561,72 @@
     font-size: 12px;
   }
 
+  .settings {
+    gap: 0;
+  }
+
+  .setting {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .setting:last-of-type {
+    border-bottom: 0;
+  }
+
+  .setting div {
+    display: grid;
+    gap: 1px;
+  }
+
+  .setting strong {
+    font-size: 14.5px;
+  }
+
+  .setting span {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .setting.disabled {
+    opacity: 0.45;
+  }
+
+  .toggle,
+  .setting select {
+    min-width: 116px;
+    padding: 8px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    text-align: center;
+  }
+
+  .toggle.on {
+    border-color: var(--accent);
+    background: rgba(255, 110, 69, 0.14);
+    color: var(--ink);
+  }
+
+  .setting select {
+    border-radius: 8px;
+    text-align: left;
+  }
+
+  .note {
+    margin: 12px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
   .tiles {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -561,7 +734,10 @@
     font-size: 13px;
   }
 
-  button:not(.ghost):not(.yes):not(.no) {
+  /* The toggles carry their own on/off styling; without this exclusion the
+     generic rule outranks `.toggle` on specificity and both states render the
+     same solid accent, which is worse than no styling at all. */
+  button:not(.ghost):not(.yes):not(.no):not(.toggle) {
     justify-self: start;
     padding: 10px 16px;
     border-radius: 8px;
