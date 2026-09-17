@@ -101,6 +101,8 @@ export async function updateGameSettings(hostToken, settings) {
     p_auto_next_seconds: settings.autoNextSeconds,
     p_recall_seconds: settings.recallSeconds,
     p_allow_late_join: settings.allowLateJoin,
+    p_blurt_lockout: settings.blurtLockout,
+    p_blurt_penalty: settings.blurtPenalty,
   })
   if (error) fail(error)
 }

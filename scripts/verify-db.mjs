@@ -206,6 +206,46 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
   check('with the pause on, all-in waits on the beat', paused.data?.phase === 'locked',
     paused.data?.phase)
 
+  // Without the lockout a wrong blurt still owes an answer, and must not be
+  // counted as done — or the question closes while the room waits on them.
+  const { data: m7 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  await db.rpc('update_game_settings', {
+    p_host_token: m7[0].host_token,
+    p_blurt_lockout: false,
+    p_blurt_penalty: 250,
+  })
+  const { data: brave } = await db.rpc('join_game', { p_code: m7[0].code, p_name: 'Brave' })
+  await db.rpc('advance_game', { p_host_token: m7[0].host_token })
+  await db.rpc('blurt', { p_player_token: brave[0].player_token })
+  await db.rpc('judge_blurt', { p_host_token: m7[0].host_token, p_correct: false })
+
+  const stillOpen = await db.from('games').select('phase').eq('code', m7[0].code).maybeSingle()
+  check('without the lockout the room still waits for their answer',
+    stillOpen.data?.phase === 'question_open', stillOpen.data?.phase)
+
+  const before = await db.from('players').select('score').eq('id', brave[0].player_id).maybeSingle()
+  // current_question withholds the answer mid-question — that is the point of it.
+  // The referee read is how you learn it.
+  const q7 = await db.rpc('host_question', { p_host_token: m7[0].host_token })
+  await db.rpc('submit_answer', {
+    p_player_token: brave[0].player_token,
+    p_choice: q7.data[0].q_correct_index,
+  })
+  const after = await db.from('players').select('score').eq('id', brave[0].player_id).maybeSingle()
+  check('a wrong blurt without the lockout still gets to answer',
+    after.data?.score > before.data?.score, `${before.data?.score} -> ${after.data?.score}`)
+
+  // Nobody goes negative, however harsh the setting.
+  const { data: m8 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  await db.rpc('update_game_settings', { p_host_token: m8[0].host_token, p_blurt_penalty: 500 })
+  const { data: broke } = await db.rpc('join_game', { p_code: m8[0].code, p_name: 'Broke' })
+  await db.rpc('advance_game', { p_host_token: m8[0].host_token })
+  await db.rpc('blurt', { p_player_token: broke[0].player_token })
+  await db.rpc('judge_blurt', { p_host_token: m8[0].host_token, p_correct: false })
+  const floored = await db.from('players').select('score').eq('id', broke[0].player_id).maybeSingle()
+  check('the penalty never takes anyone below zero', floored.data?.score === 0,
+    `${floored.data?.score}`)
+
   // The recall override has to reach the screens, not just the deadline.
   const { data: m6 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
   await db.rpc('update_game_settings', { p_host_token: m6[0].host_token, p_recall_seconds: 20 })

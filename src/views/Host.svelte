@@ -44,6 +44,7 @@
 
   const RECALL_CHOICES = [5, 8, 12, 15, 20, 30]
   const AUTO_NEXT_CHOICES = [0, 3, 5, 8, 12]
+  const PENALTY_CHOICES = [0, 100, 250, 500]
 
   async function applySettings(patch) {
     settings = { ...settings, ...patch }
@@ -321,6 +322,35 @@
             onchange={(e) => applySettings({ recallSeconds: Number(e.currentTarget.value) })}
           >
             {#each RECALL_CHOICES as n}<option value={n}>{n}s</option>{/each}
+          </select>
+        </div>
+
+        <div class="setting" class:disabled={!settings.blurtEnabled}>
+          <div>
+            <strong>A wrong blurt</strong>
+            <span>Whether missing costs you the rest of the question.</span>
+          </div>
+          <button
+            class="toggle" class:on={settings.blurtLockout}
+            aria-pressed={settings.blurtLockout}
+            disabled={!settings.blurtEnabled}
+            onclick={() => applySettings({ blurtLockout: !settings.blurtLockout })}
+          >{settings.blurtLockout ? 'Out of it' : 'Stays in'}</button>
+        </div>
+
+        <div class="setting" class:disabled={!settings.blurtEnabled}>
+          <div>
+            <strong>And costs</strong>
+            <span>Points lost for a miss. Nobody is taken below zero.</span>
+          </div>
+          <select
+            value={settings.blurtPenalty}
+            disabled={!settings.blurtEnabled}
+            onchange={(e) => applySettings({ blurtPenalty: Number(e.currentTarget.value) })}
+          >
+            {#each PENALTY_CHOICES as n}
+              <option value={n}>{n === 0 ? 'Nothing' : `${n} points`}</option>
+            {/each}
           </select>
         </div>
 

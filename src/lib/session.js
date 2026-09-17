@@ -50,6 +50,8 @@ export const DEFAULT_SETTINGS = {
   autoNextSeconds: 0,
   recallSeconds: 8,
   allowLateJoin: true,
+  blurtLockout: true,
+  blurtPenalty: 0,
 }
 
 export const readSettings = () => ({ ...DEFAULT_SETTINGS, ...(read(SETTINGS_KEY) ?? {}) })
