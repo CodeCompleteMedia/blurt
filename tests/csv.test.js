@@ -21,7 +21,7 @@ test('no header: columns are read in the order a teacher would type them', () =>
   const { questions, problems } = questionsFromText('2+2?,3,4,5,,B,10')
   assert.equal(problems.length, 0)
   assert.deepEqual(questions[0], {
-    kind: 'choice', text: '2+2?', seconds: 10, recallSeconds: 8,
+    kind: 'choice', text: '2+2?', seconds: 10, recallSeconds: 8, blurtEnabled: true,
     choices: ['3', '4', '5'], correctIndex: 1, accepted: [],
   })
 })
@@ -57,6 +57,13 @@ test('a bad row is reported by its spreadsheet line, and the good ones still com
   assert.match(problems[0].why, /not one of the choices/)
   assert.match(problems[1].why, /no question text/)
   assert.match(problems[2].why, /seconds/)
+})
+
+test('the sheet can turn blurting off per row, and typed rows start off', () => {
+  const { questions } = questionsFromText(
+    ['question,a,b,correct,blurt', 'Keeps it,x,y,a,', 'Opts out,x,y,a,no', 'Typed,,,<ol>,'].join('\n'),
+  )
+  assert.deepEqual(questions.map((q) => q.blurtEnabled), [true, false, false])
 })
 
 test('empty input is not an error', () => {

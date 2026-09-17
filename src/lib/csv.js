@@ -53,7 +53,8 @@ const HEADERS = {
   d: ['d', 'choice d', 'answer d', 'option d', 'choice 4'],
   correct: ['correct', 'answer', 'correct answer', 'key'],
   seconds: ['seconds', 'time', 'time limit', 'secs'],
-  recall: ['recall', 'recall seconds', 'blurt'],
+  recall: ['recall', 'recall seconds'],
+  blurt: ['blurt', 'blurtable', 'blurt?'],
 }
 const POSITIONAL = ['question', 'a', 'b', 'c', 'd', 'correct', 'seconds']
 
@@ -119,7 +120,13 @@ export function questionsFromText(text) {
     if (Number.isNaN(seconds)) return fail('seconds must be a whole number from 5 to 120')
     if (Number.isNaN(recall)) return fail('recall must be a whole number from 3 to 60')
 
-    const base = { kind, text: textCell, seconds, recallSeconds: recall ?? 8 }
+    // Off for typed questions, and off if the sheet says so.
+    const blurtCell = get(row, 'blurt').toLowerCase()
+    const blurtEnabled = blurtCell
+      ? !FALSE.includes(blurtCell) && blurtCell !== '0'
+      : kind !== 'text'
+
+    const base = { kind, text: textCell, seconds, recallSeconds: recall ?? 8, blurtEnabled }
 
     if (kind === 'choice') {
       if (choices.length < 2) return fail('needs at least two choices')

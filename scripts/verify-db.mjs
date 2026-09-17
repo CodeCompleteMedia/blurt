@@ -326,6 +326,48 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
   await db.rpc('close_game', { p_host_token: H9 })
 }
 
+// Blurting is per question now, and the game setting is a master switch.
+{
+  const { data: z } = await teacher.from('quizzes').insert({ title: 'per-question blurt' }).select('id').single()
+  await teacher.from('questions').insert([
+    { quiz_id: z.id, position: 0, kind: 'choice', text: 'Blurtable', choices: ['a', 'b'], correct_index: 0, seconds: 15, blurt_enabled: true },
+    { quiz_id: z.id, position: 1, kind: 'choice', text: 'Opted out', choices: ['a', 'b'], correct_index: 0, seconds: 15, blurt_enabled: false },
+  ])
+
+  const { data: r } = await teacher.rpc('create_game', { p_quiz_id: z.id })
+  const HB = r[0].host_token
+  const { data: kid } = await db.rpc('join_game', { p_code: r[0].code, p_name: 'Blurty' })
+
+  await teacher.rpc('advance_game', { p_host_token: HB })
+  const first = await db.from('games').select('phase').eq('code', r[0].code).maybeSingle()
+  check('a question that wants the window gets it', first.data?.phase === 'recall', first.data?.phase)
+
+  await teacher.rpc('advance_game', { p_host_token: HB })
+  await db.rpc('submit_answer', { p_player_token: kid[0].player_token, p_choice: 0 })
+  await teacher.rpc('advance_game', { p_host_token: HB })
+  const second = await db.from('games').select('phase').eq('code', r[0].code).maybeSingle()
+  check('one that opted out opens straight into its choices',
+    second.data?.phase === 'question_open', second.data?.phase)
+
+  const claim = await db.rpc('blurt', { p_player_token: kid[0].player_token })
+  check('and its floor cannot be claimed', claim.data === false)
+
+  const seen = await teacher.rpc('host_question', { p_host_token: HB })
+  check('the teacher screen is told this is not a blurt question', seen.data?.[0]?.q_blurt === false)
+
+  // Master switch off: even the willing question skips its window.
+  const { data: r2 } = await teacher.rpc('create_game', { p_quiz_id: z.id })
+  await teacher.rpc('update_game_settings', { p_host_token: r2[0].host_token, p_blurt_enabled: false })
+  await teacher.rpc('advance_game', { p_host_token: r2[0].host_token })
+  const off = await db.from('games').select('phase').eq('code', r2[0].code).maybeSingle()
+  check('the game setting still overrules a willing question',
+    off.data?.phase === 'question_open', off.data?.phase)
+
+  await teacher.rpc('close_game', { p_host_token: HB })
+  await teacher.rpc('close_game', { p_host_token: r2[0].host_token })
+  await teacher.from('quizzes').update({ archived_at: new Date().toISOString() }).eq('id', z.id)
+}
+
 // Phase 4: a teacher can write quizzes, and nobody else can touch them.
 {
   const planted = await db.from('quizzes').insert({ title: 'planted by a student' }).select('id')

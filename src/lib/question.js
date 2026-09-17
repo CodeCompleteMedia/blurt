@@ -23,6 +23,10 @@ export function blankQuestion(kind = 'choice') {
     accepted: kind === 'text' ? [''] : [],
     seconds: null,
     recallSeconds: 8,
+    // On by default, except where it would be the same act twice: a typed answer
+    // is already produced from memory, so a window to say it out loud first adds
+    // only a race. The teacher can still switch it on.
+    blurtEnabled: kind !== 'text',
     imagePath: null,
   }
 }
@@ -56,6 +60,7 @@ export function toRow(q, quizId, position) {
     accepted: q.kind === 'text' ? q.accepted.map((a) => a.trim()).filter(Boolean) : null,
     seconds: q.seconds || null,
     recall_seconds: q.recallSeconds || 8,
+    blurt_enabled: q.blurtEnabled !== false,
     image_path: q.imagePath,
   }
 }
@@ -73,6 +78,7 @@ export function fromRow(row) {
     accepted: row.accepted ?? [],
     seconds: row.seconds,
     recallSeconds: row.recall_seconds,
+    blurtEnabled: row.blurt_enabled !== false,
     imagePath: row.image_path,
   }
 }

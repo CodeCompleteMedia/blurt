@@ -128,11 +128,22 @@
       </select>
     </label>
     <label>
-      Recall window
-      <select value={question.recallSeconds} onchange={(e) => set({ recallSeconds: Number(e.currentTarget.value) })}>
-        {#each [5, 8, 12, 15, 20, 30] as n}<option value={n}>{n}s</option>{/each}
-      </select>
+      Blurt
+      <button
+        class="toggle" class:on={question.blurtEnabled}
+        aria-pressed={question.blurtEnabled}
+        onclick={() => set({ blurtEnabled: !question.blurtEnabled })}
+      >{question.blurtEnabled ? 'Yes' : 'No'}</button>
     </label>
+
+    {#if question.blurtEnabled}
+      <label>
+        Recall window
+        <select value={question.recallSeconds} onchange={(e) => set({ recallSeconds: Number(e.currentTarget.value) })}>
+          {#each [5, 8, 12, 15, 20, 30] as n}<option value={n}>{n}s</option>{/each}
+        </select>
+      </label>
+    {/if}
 
     <div class="image">
       {#if question.imagePath}
@@ -316,6 +327,24 @@
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--muted);
+  }
+
+  .toggle {
+    padding: 9px 16px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--ground);
+    color: var(--muted);
+    font: inherit;
+    font-size: 14px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .toggle.on {
+    border-color: var(--accent);
+    background: rgba(255, 110, 69, 0.14);
+    color: var(--ink);
   }
 
   footer select {
