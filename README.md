@@ -157,6 +157,18 @@ change it, or host it — that last one matters most: the host sees the answer k
 so before ownership existed anyone could open a private room on any quiz and walk
 off with it. Students never sign in to anything.
 
+**One-time Supabase setup** (Authentication → URL Configuration), or confirmation
+emails send people to a server that does not exist:
+
+- **Site URL:** `https://blurt-sepia.vercel.app`
+- **Redirect URLs:** `https://blurt-sepia.vercel.app/**` and `http://localhost:5173/**`
+
+Supabase ships with the Site URL set to `http://localhost:3000`. The app asks for
+links to land on `/host`, but Supabase only honours that for addresses on the
+allow-list. A link that reports `otp_expired` has usually been opened already by a
+mail scanner — which often confirms the account in passing, so try signing in
+before asking for a new one.
+
 Once your own account exists, **turn off new sign-ups** in Supabase (Authentication
 → Sign In / Providers → "Allow new users to sign up"). A stranger with an account
 could only ever see their own quizzes, but there is no reason to let them make one.

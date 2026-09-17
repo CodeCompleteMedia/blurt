@@ -1,7 +1,7 @@
 <script>
   // Everything a teacher does sits behind this. Students never meet it: joining
   // and playing need no account, only a room code.
-  import { auth, signIn, signUp } from '../lib/auth.svelte.js'
+  import { auth, linkProblem, resendConfirmation, signIn, signUp } from '../lib/auth.svelte.js'
 
   let { children } = $props()
 
@@ -11,6 +11,29 @@
   let busy = $state(false)
   let problem = $state('')
   let notice = $state('')
+  let unconfirmed = $state(false)
+
+  // Arriving from a confirmation link that did not work. The usual cause is not
+  // the teacher: mail scanners and link previews open these links first, which
+  // spends the one-time token — and quite often confirms the account in passing.
+  const failed = linkProblem()
+  if (failed) {
+    notice =
+      failed.code === 'otp_expired'
+        ? 'That confirmation link had already been used or had expired. Your account may be confirmed anyway — try signing in. If it is not, you can ask for a fresh link below.'
+        : `That link did not work (${failed.detail ?? failed.code}). Try signing in, or ask for a fresh link.`
+  }
+
+  async function resend() {
+    problem = ''
+    try {
+      await resendConfirmation(email.trim())
+      notice = 'A fresh confirmation link is on its way. Open it on this device.'
+      unconfirmed = false
+    } catch (error) {
+      problem = error.message
+    }
+  }
 
   async function submit(event) {
     event.preventDefault()
@@ -27,6 +50,7 @@
       }
     } catch (error) {
       problem = error.message
+      unconfirmed = /not confirmed/i.test(error.message)
     } finally {
       busy = false
     }
@@ -63,6 +87,9 @@
       </button>
 
       {#if problem}<p class="problem" role="alert">{problem}</p>{/if}
+      {#if unconfirmed && email.trim()}
+        <button type="button" class="switch" onclick={resend}>Send me a fresh confirmation link</button>
+      {/if}
       {#if notice}<p class="notice" role="status">{notice}</p>{/if}
 
       <button
