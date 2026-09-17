@@ -125,6 +125,12 @@ would notice.
 card — it never fails quietly on the way out.
 
 Three kinds of question: up to four choices, true or false, and type-the-answer.
+
+**Blurting is per question**, on by default — and off by default on a typed
+question, where it would be the same act twice: the student produces the answer
+from memory either way, so the window adds only a race and a pause with nothing to
+answer with. The game-level setting in the host's panel is a master switch over
+the top; a question opens in its recall window only if both allow it.
 A typed answer is forgiven what a marker would forgive — case, spacing,
 punctuation, a leading "the" — so `  OL. ` matches `<ol>`. **Spelling is not
 forgiven.** A fuzzy match that accepts "mitocondria" also accepts answers that are
