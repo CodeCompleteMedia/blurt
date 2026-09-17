@@ -34,6 +34,13 @@ const denied = async (table) => {
   return { ok: error !== null, note: error?.message ?? `read ${data?.length} rows` }
 }
 
+// `games` and `players` are no longer readable as tables — the room code is the
+// only way in. These mirror what the app itself does.
+const gameState = async (code) => (await db.rpc('game_state', { p_code: code })).data?.[0] ?? null
+const rosterOf = async (code) => (await db.rpc('roster', { p_code: code })).data ?? []
+const scoreOf = async (code, playerId) =>
+  (await rosterOf(code)).find((row) => row.id === playerId)?.score ?? null
+
 console.log('\nblurt — database security checks\n')
 
 for (const table of ['questions', 'answers', 'game_secrets', 'player_secrets']) {
@@ -41,8 +48,10 @@ for (const table of ['questions', 'answers', 'game_secrets', 'player_secrets']) 
   check(`anon cannot read ${table}`, ok, note)
 }
 
-const games = await db.from('games').select('code').limit(1)
-check('anon can read games (Realtime needs it)', games.error === null, games.error?.message)
+for (const table of ['games', 'players']) {
+  const { ok, note } = await denied(table)
+  check(`anon cannot enumerate ${table}`, ok, note)
+}
 
 // `db` stays a student throughout: the anon key and nothing else. `teacher` is
 // signed in, and is the only one who can open a room.
@@ -102,12 +111,11 @@ check('a student cannot judge a blurt', studentJudge.error !== null, studentJudg
 
 await db.rpc('judge_blurt', { p_host_token: hostToken, p_correct: false })
 
-const lockedOut = await db.from('players').select('score').eq('id', seat[0].player_id).maybeSingle()
+const lockedOut = await scoreOf(code, seat[0].player_id)
 await db.rpc('submit_answer', { p_player_token: seat[0].player_token, p_choice: 0 })
-const stillLocked = await db.from('players').select('score').eq('id', seat[0].player_id).maybeSingle()
+const stillLocked = await scoreOf(code, seat[0].player_id)
 check('a wrong blurt locks that player out of the question',
-  lockedOut.data?.score === stillLocked.data?.score,
-  `${lockedOut.data?.score} -> ${stillLocked.data?.score}`)
+  lockedOut === stillLocked, `${lockedOut} -> ${stillLocked}`)
 
 const open = await db.rpc('current_question', { p_code: code })
 check('choices appear once the blurt is judged wrong', Array.isArray(open.data?.[0]?.q_choices))
@@ -128,12 +136,12 @@ check('a student cannot advance the game', notHost.error !== null, notHost.error
 // The blurter is locked out but counted, so the rival is the only answer the
 // room is still waiting on — the question should close itself on their tap
 // rather than run the clock down.
-const beforeLast = await db.from('games').select('phase').eq('code', code).maybeSingle()
+const beforeLast = await gameState(code)
 await db.rpc('submit_answer', { p_player_token: rival[0].player_token, p_choice: 0 })
-const afterLast = await db.from('games').select('phase').eq('code', code).maybeSingle()
+const afterLast = await gameState(code)
 check('the last answer reveals straight away',
-  beforeLast.data?.phase === 'question_open' && afterLast.data?.phase === 'results',
-  `${beforeLast.data?.phase} -> ${afterLast.data?.phase}`)
+  beforeLast?.phase === 'question_open' && afterLast?.phase === 'results',
+  `${beforeLast?.phase} -> ${afterLast?.phase}`)
 
 const shown = await db.rpc('current_question', { p_code: code })
 check('correct answer released at results', Number.isInteger(shown.data?.[0]?.q_correct_index))
@@ -183,9 +191,9 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
   check('a student cannot close the room', studentClose.error !== null, studentClose.error?.message)
 
   await db.rpc('close_game', { p_host_token: h3 })
-  const closed = await db.from('games').select('phase, closed_at').eq('code', c3).maybeSingle()
+  const closed = await gameState(c3)
   check('closing marks the room without losing where it stopped',
-    closed.data?.closed_at !== null && closed.data?.phase === 'lobby')
+    closed?.closed_at !== null && closed?.phase === 'lobby')
 
   const lateJoin = await db.rpc('join_game', { p_code: c3, p_name: 'Latecomer' })
   check('nobody can join a closed room', lateJoin.error !== null, lateJoin.error?.message)
@@ -203,9 +211,9 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
   const { data: m4 } = await teacher.rpc('create_game', { p_quiz_id: quiz.data.id })
   await db.rpc('update_game_settings', { p_host_token: m4[0].host_token, p_blurt_enabled: false })
   await db.rpc('advance_game', { p_host_token: m4[0].host_token })
-  const noBlurt = await db.from('games').select('phase').eq('code', m4[0].code).maybeSingle()
+  const noBlurt = await gameState(m4[0].code)
   check('with blurting off a question opens straight into its choices',
-    noBlurt.data?.phase === 'question_open', noBlurt.data?.phase)
+    noBlurt?.phase === 'question_open', noBlurt?.phase)
 
   // Reveal pace off: all-in stops on the beat instead of revealing.
   const { data: m5 } = await teacher.rpc('create_game', { p_quiz_id: quiz.data.id })
@@ -214,9 +222,8 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
   await db.rpc('advance_game', { p_host_token: m5[0].host_token })
   await db.rpc('advance_game', { p_host_token: m5[0].host_token })
   await db.rpc('submit_answer', { p_player_token: solo[0].player_token, p_choice: 0 })
-  const paused = await db.from('games').select('phase').eq('code', m5[0].code).maybeSingle()
-  check('with the pause on, all-in waits on the beat', paused.data?.phase === 'locked',
-    paused.data?.phase)
+  const paused = await gameState(m5[0].code)
+  check('with the pause on, all-in waits on the beat', paused?.phase === 'locked', paused?.phase)
 
   // Without the lockout a wrong blurt still owes an answer, and must not be
   // counted as done — or the question closes while the room waits on them.
@@ -231,11 +238,11 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
   await db.rpc('blurt', { p_player_token: brave[0].player_token })
   await db.rpc('judge_blurt', { p_host_token: m7[0].host_token, p_correct: false })
 
-  const stillOpen = await db.from('games').select('phase').eq('code', m7[0].code).maybeSingle()
+  const stillOpen = await gameState(m7[0].code)
   check('without the lockout the room still waits for their answer',
-    stillOpen.data?.phase === 'question_open', stillOpen.data?.phase)
+    stillOpen?.phase === 'question_open', stillOpen?.phase)
 
-  const before = await db.from('players').select('score').eq('id', brave[0].player_id).maybeSingle()
+  const before = await scoreOf(m7[0].code, brave[0].player_id)
   // current_question withholds the answer mid-question — that is the point of it.
   // The referee read is how you learn it.
   const q7 = await db.rpc('host_question', { p_host_token: m7[0].host_token })
@@ -243,9 +250,9 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
     p_player_token: brave[0].player_token,
     p_choice: q7.data[0].q_correct_index,
   })
-  const after = await db.from('players').select('score').eq('id', brave[0].player_id).maybeSingle()
+  const after = await scoreOf(m7[0].code, brave[0].player_id)
   check('a wrong blurt without the lockout still gets to answer',
-    after.data?.score > before.data?.score, `${before.data?.score} -> ${after.data?.score}`)
+    after > before, `${before} -> ${after}`)
 
   // Nobody goes negative, however harsh the setting.
   const { data: m8 } = await teacher.rpc('create_game', { p_quiz_id: quiz.data.id })
@@ -254,9 +261,8 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
   await db.rpc('advance_game', { p_host_token: m8[0].host_token })
   await db.rpc('blurt', { p_player_token: broke[0].player_token })
   await db.rpc('judge_blurt', { p_host_token: m8[0].host_token, p_correct: false })
-  const floored = await db.from('players').select('score').eq('id', broke[0].player_id).maybeSingle()
-  check('the penalty never takes anyone below zero', floored.data?.score === 0,
-    `${floored.data?.score}`)
+  const floored = await scoreOf(m8[0].code, broke[0].player_id)
+  check('the penalty never takes anyone below zero', floored === 0, `${floored}`)
 
   // The recall override has to reach the screens, not just the deadline.
   const { data: m6 } = await teacher.rpc('create_game', { p_quiz_id: quiz.data.id })
@@ -344,8 +350,8 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
     await db.rpc('submit_answer', { p_player_token: run[0].player_token, p_choice: 0 })
     // Skipper answers the first and third, and sits out the second.
     if (i !== 1) await db.rpc('submit_answer', { p_player_token: skip[0].player_token, p_choice: 0 })
-    const state = await db.from('games').select('phase').eq('code', r[0].code).maybeSingle()
-    if (state.data?.phase === 'question_open') {
+    const state = await gameState(r[0].code)
+    if (state?.phase === 'question_open') {
       await teacher.rpc('advance_game', { p_host_token: HS })
       await teacher.rpc('advance_game', { p_host_token: HS })
     }
@@ -377,15 +383,15 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
   const { data: kid } = await db.rpc('join_game', { p_code: r[0].code, p_name: 'Blurty' })
 
   await teacher.rpc('advance_game', { p_host_token: HB })
-  const first = await db.from('games').select('phase').eq('code', r[0].code).maybeSingle()
-  check('a question that wants the window gets it', first.data?.phase === 'recall', first.data?.phase)
+  const first = await gameState(r[0].code)
+  check('a question that wants the window gets it', first?.phase === 'recall', first?.phase)
 
   await teacher.rpc('advance_game', { p_host_token: HB })
   await db.rpc('submit_answer', { p_player_token: kid[0].player_token, p_choice: 0 })
   await teacher.rpc('advance_game', { p_host_token: HB })
-  const second = await db.from('games').select('phase').eq('code', r[0].code).maybeSingle()
+  const second = await gameState(r[0].code)
   check('one that opted out opens straight into its choices',
-    second.data?.phase === 'question_open', second.data?.phase)
+    second?.phase === 'question_open', second?.phase)
 
   const claim = await db.rpc('blurt', { p_player_token: kid[0].player_token })
   check('and its floor cannot be claimed', claim.data === false)
@@ -397,9 +403,9 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
   const { data: r2 } = await teacher.rpc('create_game', { p_quiz_id: z.id })
   await teacher.rpc('update_game_settings', { p_host_token: r2[0].host_token, p_blurt_enabled: false })
   await teacher.rpc('advance_game', { p_host_token: r2[0].host_token })
-  const off = await db.from('games').select('phase').eq('code', r2[0].code).maybeSingle()
+  const off = await gameState(r2[0].code)
   check('the game setting still overrules a willing question',
-    off.data?.phase === 'question_open', off.data?.phase)
+    off?.phase === 'question_open', off?.phase)
 
   await teacher.rpc('close_game', { p_host_token: HB })
   await teacher.rpc('close_game', { p_host_token: r2[0].host_token })

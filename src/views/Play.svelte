@@ -23,7 +23,6 @@
 
   let seat = $state(null)
   let game = $state(null)
-  let gameId = $state(null)
   let players = $state([])
   let picked = $state(null)
   let answeredIndex = $state(null)
@@ -88,8 +87,7 @@
         window.location.assign('/')
         return
       }
-      gameId = game.id
-      players = await fetchPlayers(gameId)
+      players = await fetchPlayers(saved.code)
     } catch (error) {
       problem = error.message
     } finally {
@@ -165,10 +163,9 @@
   })
 
   $effect(() => {
-    if (!gameId || !seat?.code) return
+    if (!seat?.code) return
     const watch = watchGame({
       code: seat.code,
-      gameId,
       onGame: (row) => (game = row),
       onPlayers: (rows) => (players = rows),
     })

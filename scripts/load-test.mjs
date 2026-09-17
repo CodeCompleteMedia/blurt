@@ -105,7 +105,9 @@ const answers = await volley(
 )
 check('every answer is accepted', answers.results.every((r) => !r.error), timing(answers))
 
-const { data: game } = await host.from('games').select('phase, answered_count').eq('code', code).maybeSingle()
+// The tables are shut; a room is read by its code, exactly as a phone reads it.
+const { data: gameRows } = await host.rpc('game_state', { p_code: code })
+const game = gameRows?.[0]
 check('the last answer closed the question', game.phase === 'results', game.phase)
 check('nobody was double-counted or dropped', game.answered_count === N,
   `${game.answered_count} of ${N}`)
@@ -115,8 +117,7 @@ const tallied = dist.reduce((sum, row) => sum + Number(row.answer_count), 0)
 // The wrong blurter is locked out: counted as done, but with no tapped answer.
 check('the tally matches the room', tallied === N - 1, `${tallied} votes + 1 locked out`)
 
-const { data: players } = await host.from('players').select('score').eq('game_id',
-  (await host.from('games').select('id').eq('code', code).maybeSingle()).data.id)
+const { data: players } = await host.rpc('roster', { p_code: code })
 const scorers = players.filter((p) => p.score > 0).length
 const expected = answers.results.filter((r, i) => r.choice === correct && i !== loser).length
 check('exactly the right players scored', scorers === expected, `${scorers} of ${expected}`)

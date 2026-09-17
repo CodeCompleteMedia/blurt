@@ -94,19 +94,20 @@ export async function distribution(code) {
 
 // -------------------------------------------------------------------- state --
 
+// Both reads go through a function rather than the table. `games` and `players`
+// are not readable at all any more: they were readable by anyone holding the
+// anon key, which ships in the bundle, and that meant every room code and every
+// student's name and score in every teacher's game. The room code is now the
+// only way in, and the ordering lives in the database so the rank a phone shows
+// is the rank the server computed.
 export async function fetchGame(code) {
-  const { data, error } = await db.from('games').select('*').eq('code', code).maybeSingle()
+  const { data, error } = await db.rpc('game_state', { p_code: code })
   if (error) fail(error)
-  return data
+  return data?.[0] ?? null
 }
 
-export async function fetchPlayers(gameId) {
-  const { data, error } = await db
-    .from('players')
-    .select('id, name, score')
-    .eq('game_id', gameId)
-    .order('score', { ascending: false })
-    .order('joined_at', { ascending: true })
+export async function fetchPlayers(code) {
+  const { data, error } = await db.rpc('roster', { p_code: code })
   if (error) fail(error)
   return (data ?? []).map((player, i) => ({ ...player, rank: i + 1 }))
 }
@@ -315,18 +316,24 @@ export async function rosterStats(hostToken) {
  * silently stops advancing mid-lesson is the worst failure this app has. Two
  * small queries every few seconds is a cheap insurance premium.
  */
-// Supabase hands back the *existing* channel when a name is reused, and adding
-// listeners to an already-subscribed channel throws. Removal is asynchronous, so
-// a teardown and a re-subscribe can overlap — a fresh name each time sidesteps
-// the race entirely.
-let channelSeq = 0
+// The topic is the room code, so unlike the channel names this used to build,
+// it cannot carry a counter to dodge reuse. Supabase hands back the *existing*
+// channel when a topic is reused and adding listeners to an already-subscribed
+// channel throws, so any channel left over from a previous mount is removed
+// first — teardown is asynchronous and a re-subscribe can overlap it.
+function freshChannel(topic) {
+  for (const existing of db.getChannels()) {
+    if (existing.topic === `realtime:${topic}`) db.removeChannel(existing)
+  }
+  return db.channel(topic, { config: { private: true } })
+}
 
-export function watchGame({ code, gameId, onGame, onPlayers, intervalMs = 2500 }) {
+export function watchGame({ code, onGame, onPlayers, intervalMs = 2500 }) {
   let live = false
 
   const refresh = async () => {
     try {
-      const [game, players] = await Promise.all([fetchGame(code), fetchPlayers(gameId)])
+      const [game, players] = await Promise.all([fetchGame(code), fetchPlayers(code)])
       if (game) onGame?.(game)
       if (players) onPlayers?.(players)
     } catch {
@@ -334,21 +341,21 @@ export function watchGame({ code, gameId, onGame, onPlayers, intervalMs = 2500 }
     }
   }
 
-  const channel = db
-    .channel(`blurt:${gameId}:${(channelSeq += 1)}`)
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameId}` },
-      ({ new: row }) => onGame?.(row),
-    )
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'players', filter: `game_id=eq.${gameId}` },
-      async () => onPlayers?.(await fetchPlayers(gameId)),
-    )
-    .subscribe((status) => {
-      live = status === 'SUBSCRIBED'
-    })
+  // What arrives is a bare signal, not the row: the database announces that
+  // something moved and this asks what, down the same path the poll uses. One
+  // code path instead of two, and nothing about the room travels in the message.
+  let channel = null
+  try {
+    channel = freshChannel(`blurt:${code}`)
+      .on('broadcast', { event: 'changed' }, refresh)
+      .subscribe((status) => {
+        live = status === 'SUBSCRIBED'
+      })
+  } catch {
+    // Broadcast is the fast path, not the only one. If it cannot be set up the
+    // poll below still runs the lesson, a couple of seconds behind.
+    channel = null
+  }
 
   const timer = setInterval(refresh, intervalMs)
 
@@ -363,7 +370,7 @@ export function watchGame({ code, gameId, onGame, onPlayers, intervalMs = 2500 }
 
   return {
     stop() {
-      db.removeChannel(channel)
+      if (channel) db.removeChannel(channel)
       clearInterval(timer)
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('focus', onVisible)

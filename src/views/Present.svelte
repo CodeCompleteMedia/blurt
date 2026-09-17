@@ -122,7 +122,7 @@
     try {
       game = await fetchGame(code)
       if (!game) problem = `No room called ${code}.`
-      else players = await fetchPlayers(game.id)
+      else players = await fetchPlayers(code)
     } catch (error) {
       problem = error.message
     } finally {
@@ -137,10 +137,9 @@
   $effect(() => ticker((t) => (now = t)))
 
   $effect(() => {
-    if (!game?.id || !code) return
+    if (!code) return
     const watch = watchGame({
       code,
-      gameId: game.id,
       onGame: (row) => (game = row),
       onPlayers: (rows) => (players = rows),
     })

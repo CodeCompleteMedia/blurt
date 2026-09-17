@@ -291,10 +291,9 @@
   $effect(() => heartbeat((t) => (beat = t)))
 
   $effect(() => {
-    if (!host?.gameId) return
+    if (!host?.code) return
     const watch = watchGame({
       code: host.code,
-      gameId: host.gameId,
       onGame: (row) => (game = row),
       onPlayers: async () => (roster = await rosterStats(host.hostToken)),
     })
