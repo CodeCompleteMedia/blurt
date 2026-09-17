@@ -93,7 +93,7 @@
       try {
         question = await currentQuestion(code)
         counts = p === 'results' ? await distribution(code) : []
-        floor = p === 'blurt_claimed' ? await blurter(code) : null
+        floor = p === 'blurt_claimed' || p === 'results' ? await blurter(code) : null
       } catch (error) {
         problem = error.message
       }
@@ -167,7 +167,9 @@
     <section class="results">
       <div class="left">
         <h2 class="reveal">
-          <span class="eyebrow">The answer was</span>
+          <span class="eyebrow">
+            {floor?.wasCorrect ? `${floor.name} blurted it` : 'The answer was'}
+          </span>
           {question.choices?.[question.correctIndex] ?? '—'}
         </h2>
         <div class="tiles result-tiles">
@@ -387,6 +389,8 @@
   .reveal {
     display: grid;
     gap: 6px;
+    /* The eyebrow becomes the credit when someone won it outright, so it earns a
+       little more presence than a label. */
     font-family: var(--body);
     font-size: clamp(30px, 4.2vw, 60px);
     font-weight: 600;

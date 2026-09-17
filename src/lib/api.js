@@ -110,12 +110,16 @@ export async function judgeBlurt(hostToken, correct) {
   if (error) fail(error)
 }
 
-/** Who holds the floor, for the wall. A name is all this returns. */
+/**
+ * Who claimed the floor, for the wall — during the claim, and again at results so
+ * the reveal can name whoever won the question outright. A name and whether they
+ * got it; nothing else about them is anyone's business.
+ */
 export async function blurter(code) {
   const { data, error } = await db.rpc('blurter', { p_code: code })
   if (error) fail(error)
   const row = data?.[0]
-  return row ? { id: row.player_id, name: row.player_name } : null
+  return row ? { id: row.player_id, name: row.player_name, wasCorrect: row.was_correct } : null
 }
 
 /**

@@ -139,5 +139,29 @@ check('own result released at results',
 const notMine = await db.rpc('my_result', { p_player_token: FORGED })
 check('a forged token gets no result', notMine.error !== null, notMine.error?.message)
 
+// A question won outright on a blurt: the reveal must not show four zeroes over
+// a scoreboard where somebody clearly scored.
+{
+  const { data: m2 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  const { code: c2, host_token: h2 } = m2[0]
+  const { data: s2 } = await db.rpc('join_game', { p_code: c2, p_name: 'Blurter' })
+  await db.rpc('advance_game', { p_host_token: h2 })
+  await db.rpc('blurt', { p_player_token: s2[0].player_token })
+  await db.rpc('judge_blurt', { p_host_token: h2, p_correct: true })
+
+  const q = await db.rpc('current_question', { p_code: c2 })
+  const dist = await db.rpc('distribution', { p_code: c2 })
+  const counts = (dist.data ?? []).map((r) => Number(r.answer_count))
+  const correctIndex = q.data?.[0]?.q_correct_index
+
+  check('a correct blurt counts toward the answer it named',
+    counts[correctIndex] === 1 && counts.reduce((a, b) => a + b, 0) === 1,
+    `[${counts.join(', ')}] correct=${correctIndex}`)
+
+  const who = await db.rpc('blurter', { p_code: c2 })
+  check('the wall can credit the blurter at results',
+    who.data?.[0]?.player_name === 'Blurter' && who.data?.[0]?.was_correct === true)
+}
+
 console.log(`\n  ${failures ? `${failures} failed` : 'all checks passed'}  (test room ${code})\n`)
 process.exit(failures ? 1 : 0)
