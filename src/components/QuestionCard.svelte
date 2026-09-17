@@ -100,7 +100,7 @@
   {:else}
     <div class="accepted">
       <p class="hint">
-        Accepted answers. Case, spacing, punctuation and a leading "the" are forgiven. Spelling is not.
+        Accepted answers. Case, spacing, punctuation, accents and a leading "the" are forgiven. Spelling is not.
       </p>
       {#each question.accepted as answer, i}
         <input

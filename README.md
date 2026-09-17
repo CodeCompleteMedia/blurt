@@ -132,7 +132,8 @@ from memory either way, so the window adds only a race and a pause with nothing 
 answer with. The game-level setting in the host's panel is a master switch over
 the top; a question opens in its recall window only if both allow it.
 A typed answer is forgiven what a marker would forgive — case, spacing,
-punctuation, a leading "the" — so `  OL. ` matches `<ol>`. **Spelling is not
+punctuation, accents, a leading "the" — so `  OL. ` matches `<ol>` and `patino`
+matches `Patiño`. Nobody hunts for ñ on a phone keyboard under a countdown. **Spelling is not
 forgiven.** A fuzzy match that accepts "mitocondria" also accepts answers that are
 simply wrong; a student who loses a point to a typo can argue it with you, and one
 who gains a point from a lucky near-miss never will. Give alternatives instead.

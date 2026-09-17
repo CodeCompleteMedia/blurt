@@ -308,7 +308,7 @@
         autofocus
       />
       <button type="submit" disabled={busy || !draft.trim()}>Lock it in</button>
-      <p class="muted small">Spelling counts. Capitals and punctuation don't.</p>
+      <p class="muted small">Spelling counts. Capitals, accents and punctuation don't.</p>
     </form>
   {:else if phase === 'question_open' && !locked}
     <header><span class="eyebrow">Look up at the board</span></header>
