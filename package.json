@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "node --test tests/*.test.js",
     "verify:db": "node --env-file=.env.local scripts/verify-db.mjs",
-    "load": "node --env-file=.env.local scripts/load-test.mjs"
+    "load": "node --env-file=.env.local scripts/load-test.mjs",
+    "check:migrations": "bash scripts/check-migrations.sh"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.0",

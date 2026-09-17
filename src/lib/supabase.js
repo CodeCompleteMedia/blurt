@@ -11,8 +11,9 @@ export const configured = Boolean(url && key)
 
 export const db = configured
   ? createClient(url, key, {
-      // Nobody signs in. Players are identified by a seat token the database
-      // issued, not by a Supabase session.
-      auth: { persistSession: false, autoRefreshToken: false },
+      // Only the teacher ever signs in, and their session should survive a
+      // refresh mid-lesson. Students hold a seat token the database issued and
+      // never have a session at all, so for them this stores nothing.
+      auth: { persistSession: true, autoRefreshToken: true },
     })
   : null

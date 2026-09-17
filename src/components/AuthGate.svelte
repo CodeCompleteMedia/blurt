@@ -1,0 +1,175 @@
+<script>
+  // Everything a teacher does sits behind this. Students never meet it: joining
+  // and playing need no account, only a room code.
+  import { auth, signIn, signUp } from '../lib/auth.svelte.js'
+
+  let { children } = $props()
+
+  let mode = $state('in')
+  let email = $state('')
+  let password = $state('')
+  let busy = $state(false)
+  let problem = $state('')
+  let notice = $state('')
+
+  async function submit(event) {
+    event.preventDefault()
+    if (busy) return
+    busy = true
+    problem = ''
+    notice = ''
+    try {
+      if (mode === 'in') {
+        await signIn(email.trim(), password)
+      } else if (await signUp(email.trim(), password)) {
+        notice = 'Check your inbox to confirm the address, then sign in.'
+        mode = 'in'
+      }
+    } catch (error) {
+      problem = error.message
+    } finally {
+      busy = false
+    }
+  }
+</script>
+
+{#if !auth.ready}
+  <main class="surface gate"><p class="muted">…</p></main>
+{:else if auth.user}
+  {@render children()}
+{:else}
+  <main class="surface gate">
+    <form class="card" onsubmit={submit}>
+      <h1>blurt</h1>
+      <p class="muted">
+        {mode === 'in' ? 'Sign in to host a room or edit your quizzes.' : 'Create a teacher account.'}
+      </p>
+
+      <label for="auth-email">Email</label>
+      <input id="auth-email" type="email" bind:value={email} autocomplete="email" required />
+
+      <label for="auth-password">Password</label>
+      <input
+        id="auth-password"
+        type="password"
+        bind:value={password}
+        autocomplete={mode === 'in' ? 'current-password' : 'new-password'}
+        minlength="8"
+        required
+      />
+
+      <button type="submit" disabled={busy}>
+        {busy ? '…' : mode === 'in' ? 'Sign in' : 'Create account'}
+      </button>
+
+      {#if problem}<p class="problem" role="alert">{problem}</p>{/if}
+      {#if notice}<p class="notice" role="status">{notice}</p>{/if}
+
+      <button
+        type="button"
+        class="switch"
+        onclick={() => {
+          mode = mode === 'in' ? 'up' : 'in'
+          problem = ''
+        }}
+      >
+        {mode === 'in' ? 'First time? Create an account' : 'Have an account? Sign in'}
+      </button>
+
+      <p class="muted small">Students don't need any of this — they join at <a href="/">the front door</a>.</p>
+    </form>
+  </main>
+{/if}
+
+<style>
+  .gate {
+    display: grid;
+    place-items: center;
+    height: 100%;
+  }
+
+  .card {
+    display: grid;
+    gap: 10px;
+    width: 100%;
+    max-width: 380px;
+    min-width: 0;
+  }
+
+  h1 {
+    font-size: 56px;
+    color: var(--accent);
+    text-align: center;
+  }
+
+  .muted {
+    margin: 0 0 8px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .small {
+    margin-top: 10px;
+    font-size: 13px;
+  }
+
+  .small a {
+    color: inherit;
+  }
+
+  label {
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  input {
+    width: 100%;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    font-size: 17px;
+  }
+
+  button[type='submit'] {
+    margin-top: 6px;
+    padding: 15px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #1a0d07;
+    font-size: 17px;
+    font-weight: 700;
+  }
+
+  button[type='submit']:disabled {
+    background: var(--surface-2);
+    color: var(--muted);
+  }
+
+  .switch {
+    justify-self: center;
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 14px;
+    text-decoration: underline;
+  }
+
+  .problem,
+  .notice {
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    font-size: 15px;
+  }
+
+  .notice {
+    border-left-color: #3fbf87;
+  }
+</style>

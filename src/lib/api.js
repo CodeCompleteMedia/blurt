@@ -11,14 +11,38 @@ function fail(error) {
 
 // ------------------------------------------------------------------ content --
 
-export async function firstQuiz() {
+/** The signed-in teacher's quizzes. Row level security does the filtering. */
+export async function listQuizzes() {
   const { data, error } = await db
     .from('quizzes')
-    .select('id, title')
-    .order('created_at', { ascending: true })
-    .limit(1)
+    .select('id, title, default_seconds, created_at, questions(count)')
+    .order('created_at', { ascending: false })
   if (error) fail(error)
-  return data?.[0] ?? null
+  return (data ?? []).map((quiz) => ({
+    id: quiz.id,
+    title: quiz.title,
+    defaultSeconds: quiz.default_seconds,
+    questionCount: quiz.questions?.[0]?.count ?? 0,
+  }))
+}
+
+export async function quizTitle(quizId) {
+  const { data, error } = await db.from('quizzes').select('title').eq('id', quizId).maybeSingle()
+  if (error) fail(error)
+  return data?.title ?? ''
+}
+
+/** A new teacher's first quiz: their own copy of the five starter questions. */
+export async function copySampleQuiz() {
+  const { data, error } = await db.rpc('copy_sample_quiz')
+  if (error) fail(error)
+  return data
+}
+
+export async function duplicateQuiz(quizId) {
+  const { data, error } = await db.rpc('duplicate_quiz', { p_quiz_id: quizId })
+  if (error) fail(error)
+  return data
 }
 
 /**

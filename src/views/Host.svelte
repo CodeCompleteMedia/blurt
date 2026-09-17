@@ -10,7 +10,9 @@
     closeGame,
     createGame,
     fetchGame,
-    firstQuiz,
+    copySampleQuiz,
+    listQuizzes,
+    quizTitle as fetchQuizTitle,
     hostQuestion,
     extendQuestion,
     judgeBlurt,
@@ -21,6 +23,7 @@
     updateGameSettings,
     watchGame,
   } from '../lib/api.js'
+  import { auth, signOut } from '../lib/auth.svelte.js'
   import { clockBase, heartbeat, remainingSeconds, ticker } from '../lib/clock.js'
   import { clearHost, readHost, readSettings, writeHost, writeSettings } from '../lib/session.js'
 
@@ -39,6 +42,9 @@
   let questionBase = $state(null)
   let loadedKey = ''
   let autoLockedKey = ''
+  // No room yet: the teacher is choosing which quiz to run.
+  let picking = $state(false)
+  let quizzes = $state([])
   // Kept so a new room can take the projector with it. Lost on a host refresh,
   // which is why /present also watches for the room closing on its own.
   let projector = null
@@ -88,9 +94,7 @@
     final: 'Finished',
   }
 
-  async function startNewGame() {
-    const quiz = await firstQuiz()
-    if (!quiz) throw new Error('No quiz in the database. Run `npx supabase db push`.')
+  async function startNewGame(quiz) {
     quizTitle = quiz.title
     const { code, hostToken } = await createGame(quiz.id)
     // Carry this teacher's preferences into the new room before anyone joins.
@@ -99,6 +103,34 @@
     host = { code, hostToken, gameId: row.id }
     writeHost(host)
     game = row
+    picking = false
+    // Carry the projector across if this page opened one and it is still up.
+    if (projector && !projector.closed) projector.location.assign(`/present/${code}`)
+  }
+
+  async function choose(quiz) {
+    booting = true
+    problem = ''
+    try {
+      await startNewGame(quiz)
+      roster = await rosterStats(host.hostToken)
+    } catch (error) {
+      problem = error.message
+    } finally {
+      booting = false
+    }
+  }
+
+  async function useSample() {
+    booting = true
+    try {
+      await copySampleQuiz()
+      quizzes = await listQuizzes()
+    } catch (error) {
+      problem = error.message
+    } finally {
+      booting = false
+    }
   }
 
   async function boot() {
@@ -109,11 +141,15 @@
         if (row && row.phase !== 'final') {
           host = saved
           game = row
-          quizTitle = (await firstQuiz())?.title ?? ''
+          quizTitle = await fetchQuizTitle(row.quiz_id)
         }
       }
-      if (!host) await startNewGame()
-      roster = await rosterStats(host.hostToken)
+      if (host) {
+        roster = await rosterStats(host.hostToken)
+      } else {
+        quizzes = await listQuizzes()
+        picking = true
+      }
     } catch (error) {
       problem = error.message
     } finally {
@@ -192,9 +228,10 @@
           // A room that cannot be closed is not a reason to block a new one.
         }
       }
-      await startNewGame()
-      // Carry the projector across if this page opened one and it is still up.
-      if (projector && !projector.closed) projector.location.assign(`/present/${host.code}`)
+      // Back to the quiz list rather than straight into another room: the next
+      // class is rarely running the same quiz as the last one.
+      quizzes = await listQuizzes()
+      picking = true
     } catch (error) {
       problem = error.message
     } finally {
@@ -317,6 +354,41 @@
     <div class="panel warn">
       <p>{problem}</p>
       <button onclick={restart}>Start a new room</button>
+    </div>
+  {:else if picking}
+    <div class="picker">
+      <header>
+        <div class="grow">
+          <span class="eyebrow">Signed in as {auth.user?.email}</span>
+          <strong class="code">Which quiz?</strong>
+        </div>
+        <a class="ghost" href="/edit">Edit quizzes</a>
+        <button class="ghost" onclick={signOut}>Sign out</button>
+      </header>
+
+      {#if quizzes.length}
+        <ul class="quizzes">
+          {#each quizzes as quiz (quiz.id)}
+            <li>
+              <div>
+                <strong>{quiz.title}</strong>
+                <span class="muted">{quiz.questionCount} question{quiz.questionCount === 1 ? '' : 's'}</span>
+              </div>
+              <button onclick={() => choose(quiz)} disabled={quiz.questionCount === 0}>
+                Open a room
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <div class="panel">
+          <p>You have no quizzes yet.</p>
+          <div class="clock-controls">
+            <button onclick={useSample}>Start from the sample quiz</button>
+            <a class="ghost" href="/edit">Write your own</a>
+          </div>
+        </div>
+      {/if}
     </div>
   {:else}
     <header>
@@ -740,6 +812,41 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
+  }
+
+  .picker {
+    display: grid;
+    gap: 16px;
+    align-content: start;
+  }
+
+  .quizzes {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .quizzes li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+
+  .quizzes li div {
+    display: grid;
+    gap: 2px;
+  }
+
+  a.ghost {
+    text-decoration: none;
   }
 
   .clock-controls {

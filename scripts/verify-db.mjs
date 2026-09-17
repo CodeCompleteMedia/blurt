@@ -9,6 +9,8 @@
 
 import { createClient } from '@supabase/supabase-js'
 
+import { signInTeacher } from './lib/teacher.mjs'
+
 const url = process.env.VITE_SUPABASE_URL
 const key = process.env.VITE_SUPABASE_ANON_KEY
 
@@ -42,13 +44,23 @@ for (const table of ['questions', 'answers', 'game_secrets', 'player_secrets']) 
 const games = await db.from('games').select('code').limit(1)
 check('anon can read games (Realtime needs it)', games.error === null, games.error?.message)
 
-const quiz = await db.from('quizzes').select('id').limit(1).maybeSingle()
-if (!quiz.data) {
-  check('a quiz exists to test against', false, 'run `npx supabase db push`')
-  process.exit(1)
-}
+// `db` stays a student throughout: the anon key and nothing else. `teacher` is
+// signed in, and is the only one who can open a room.
+const { teacher, quizId } = await signInTeacher(url, key)
+const quiz = { data: { id: quizId } }
 
-const { data: made, error: makeErr } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+const peek = await db.from('quizzes').select('id').limit(1)
+check('anon cannot list quizzes', peek.error !== null, peek.error?.message)
+
+// The hole this closes: a student opening a private room on the teacher's quiz,
+// becoming its "host", and reading the answer key out of host_question.
+const heist = await db.rpc('create_game', { p_quiz_id: quizId })
+check('a student cannot open a room on the teacher\'s quiz', heist.error !== null, heist.error?.message)
+
+const template = await teacher.rpc('create_game', { p_quiz_id: '11111111-1111-1111-1111-111111111111' })
+check('nobody can host the ownerless template', template.error !== null, template.error?.message)
+
+const { data: made, error: makeErr } = await teacher.rpc('create_game', { p_quiz_id: quiz.data.id })
 check('create_game', !makeErr && Boolean(made?.[0]?.code), makeErr?.message)
 if (makeErr) process.exit(1)
 const { code, host_token: hostToken } = made[0]
@@ -140,7 +152,7 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
 // A question won outright on a blurt: the reveal must not show four zeroes over
 // a scoreboard where somebody clearly scored.
 {
-  const { data: m2 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  const { data: m2 } = await teacher.rpc('create_game', { p_quiz_id: quiz.data.id })
   const { code: c2, host_token: h2 } = m2[0]
   const { data: s2 } = await db.rpc('join_game', { p_code: c2, p_name: 'Blurter' })
   await db.rpc('advance_game', { p_host_token: h2 })
@@ -163,7 +175,7 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
 
 // Closing a room is how the wall and the phones learn to go home.
 {
-  const { data: m3 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  const { data: m3 } = await teacher.rpc('create_game', { p_quiz_id: quiz.data.id })
   const { code: c3, host_token: h3 } = m3[0]
   await db.rpc('join_game', { p_code: c3, p_name: 'Stayer' })
 
@@ -188,7 +200,7 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
   check('a student cannot change the settings', notHost.error !== null, notHost.error?.message)
 
   // Blurting off: a question opens with its choices up, no recall window.
-  const { data: m4 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  const { data: m4 } = await teacher.rpc('create_game', { p_quiz_id: quiz.data.id })
   await db.rpc('update_game_settings', { p_host_token: m4[0].host_token, p_blurt_enabled: false })
   await db.rpc('advance_game', { p_host_token: m4[0].host_token })
   const noBlurt = await db.from('games').select('phase').eq('code', m4[0].code).maybeSingle()
@@ -196,7 +208,7 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
     noBlurt.data?.phase === 'question_open', noBlurt.data?.phase)
 
   // Reveal pace off: all-in stops on the beat instead of revealing.
-  const { data: m5 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  const { data: m5 } = await teacher.rpc('create_game', { p_quiz_id: quiz.data.id })
   await db.rpc('update_game_settings', { p_host_token: m5[0].host_token, p_reveal_immediately: false })
   const { data: solo } = await db.rpc('join_game', { p_code: m5[0].code, p_name: 'Solo' })
   await db.rpc('advance_game', { p_host_token: m5[0].host_token })
@@ -208,7 +220,7 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
 
   // Without the lockout a wrong blurt still owes an answer, and must not be
   // counted as done — or the question closes while the room waits on them.
-  const { data: m7 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  const { data: m7 } = await teacher.rpc('create_game', { p_quiz_id: quiz.data.id })
   await db.rpc('update_game_settings', {
     p_host_token: m7[0].host_token,
     p_blurt_lockout: false,
@@ -236,7 +248,7 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
     after.data?.score > before.data?.score, `${before.data?.score} -> ${after.data?.score}`)
 
   // Nobody goes negative, however harsh the setting.
-  const { data: m8 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  const { data: m8 } = await teacher.rpc('create_game', { p_quiz_id: quiz.data.id })
   await db.rpc('update_game_settings', { p_host_token: m8[0].host_token, p_blurt_penalty: 500 })
   const { data: broke } = await db.rpc('join_game', { p_code: m8[0].code, p_name: 'Broke' })
   await db.rpc('advance_game', { p_host_token: m8[0].host_token })
@@ -247,7 +259,7 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
     `${floored.data?.score}`)
 
   // The recall override has to reach the screens, not just the deadline.
-  const { data: m6 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  const { data: m6 } = await teacher.rpc('create_game', { p_quiz_id: quiz.data.id })
   await db.rpc('update_game_settings', { p_host_token: m6[0].host_token, p_recall_seconds: 20 })
   await db.rpc('advance_game', { p_host_token: m6[0].host_token })
   const seen = await db.rpc('current_question', { p_code: m6[0].code })
@@ -261,7 +273,7 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
   check('internal helpers are not callable from a phone', internal.error !== null,
     internal.error?.message?.slice(0, 60))
 
-  const { data: m9 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  const { data: m9 } = await teacher.rpc('create_game', { p_quiz_id: quiz.data.id })
   const H9 = m9[0].host_token
   const C9 = m9[0].code
 

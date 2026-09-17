@@ -14,6 +14,8 @@
 
 import { createClient } from '@supabase/supabase-js'
 
+import { signInTeacher } from './lib/teacher.mjs'
+
 const url = process.env.VITE_SUPABASE_URL
 const key = process.env.VITE_SUPABASE_ANON_KEY
 if (!url || !key) {
@@ -22,7 +24,6 @@ if (!url || !key) {
 }
 
 const N = Number(process.argv[2] ?? 40)
-const host = createClient(url, key, { auth: { persistSession: false } })
 let failures = 0
 
 const check = (label, pass, note = '') => {
@@ -55,8 +56,8 @@ const timing = ({ results, wallMs }) => {
 
 console.log(`\nblurt — load test, ${N} players\n`)
 
-const { data: quiz } = await host.from('quizzes').select('id').limit(1).maybeSingle()
-const { data: made } = await host.rpc('create_game', { p_quiz_id: quiz.id })
+const { teacher: host, quizId } = await signInTeacher(url, key)
+const { data: made } = await host.rpc('create_game', { p_quiz_id: quizId })
 const { code, host_token: H } = made[0]
 
 // One client per phone, as it would be in the room.
