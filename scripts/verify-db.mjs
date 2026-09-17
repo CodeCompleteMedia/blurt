@@ -163,5 +163,23 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
     who.data?.[0]?.player_name === 'Blurter' && who.data?.[0]?.was_correct === true)
 }
 
+// Closing a room is how the wall and the phones learn to go home.
+{
+  const { data: m3 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  const { code: c3, host_token: h3 } = m3[0]
+  await db.rpc('join_game', { p_code: c3, p_name: 'Stayer' })
+
+  const studentClose = await db.rpc('close_game', { p_host_token: FORGED })
+  check('a student cannot close the room', studentClose.error !== null, studentClose.error?.message)
+
+  await db.rpc('close_game', { p_host_token: h3 })
+  const closed = await db.from('games').select('phase, closed_at').eq('code', c3).maybeSingle()
+  check('closing marks the room without losing where it stopped',
+    closed.data?.closed_at !== null && closed.data?.phase === 'lobby')
+
+  const lateJoin = await db.rpc('join_game', { p_code: c3, p_name: 'Latecomer' })
+  check('nobody can join a closed room', lateJoin.error !== null, lateJoin.error?.message)
+}
+
 console.log(`\n  ${failures ? `${failures} failed` : 'all checks passed'}  (test room ${code})\n`)
 process.exit(failures ? 1 : 0)

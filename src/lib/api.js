@@ -92,6 +92,12 @@ export async function submitAnswer(playerToken, choice) {
   if (error) fail(error)
 }
 
+/** Ends a room. The wall and the phones are watching for this. */
+export async function closeGame(hostToken) {
+  const { error } = await db.rpc('close_game', { p_host_token: hostToken })
+  if (error) fail(error)
+}
+
 export async function advanceGame(hostToken) {
   const { error } = await db.rpc('advance_game', { p_host_token: hostToken })
   if (error) fail(error)

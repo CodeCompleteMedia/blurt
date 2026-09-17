@@ -32,6 +32,7 @@
 
   let limit = $derived((question?.seconds ?? 20) * 1000)
   let phase = $derived(game?.phase ?? null)
+  let closed = $derived(Boolean(game?.closed_at))
   let counting = $derived(phase === 'recall' || phase === 'question_open')
   let totalVotes = $derived(counts.reduce((sum, n) => sum + n, 0))
   // The room beat the clock rather than running out of it — worth saying, because
@@ -114,6 +115,13 @@
     <section class="centred"><p class="muted">Finding the room…</p></section>
   {:else if problem}
     <section class="centred"><p class="muted">{problem}</p></section>
+  {:else if closed}
+    <!-- The host started a new room. This one has no way to discover the new
+         code, so it says so plainly rather than showing a game nobody is in. -->
+    <section class="centred">
+      <h1 class="hush">Room closed</h1>
+      <p class="muted">The teacher has opened a new room.</p>
+    </section>
   {:else if phase === 'lobby'}
     <section class="lobby">
       <p class="eyebrow">Room code</p>
@@ -240,6 +248,11 @@
     margin: 0;
     color: var(--muted);
     font-size: clamp(16px, 1.8vw, 22px);
+  }
+
+  .hush {
+    color: var(--muted);
+    font-size: clamp(48px, 9vw, 110px);
   }
 
   .code-big {

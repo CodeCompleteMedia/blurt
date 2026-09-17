@@ -119,6 +119,14 @@
     return watch.stop
   })
 
+  // The host closed this room. A student has nothing to do here and no way to
+  // find the new code, so send them back to the join screen with a clean seat.
+  $effect(() => {
+    if (!game?.closed_at) return
+    clearSeat()
+    window.location.assign('/')
+  })
+
   $effect(() => {
     const index = game?.question_index
     if (index != null && index !== answeredIndex) {

@@ -7,6 +7,7 @@
   import {
     advanceGame,
     blurter,
+    closeGame,
     createGame,
     fetchGame,
     firstQuiz,
@@ -33,6 +34,9 @@
   let questionBase = $state(null)
   let loadedKey = ''
   let autoLockedKey = ''
+  // Kept so a new room can take the projector with it. Lost on a host refresh,
+  // which is why /present also watches for the room closing on its own.
+  let projector = null
 
   let phase = $derived(game?.phase ?? null)
   let limit = $derived(
@@ -104,7 +108,13 @@
   const step = () => run(() => advanceGame(host.hostToken))
   const judge = (correct) => run(() => judgeBlurt(host.hostToken, correct))
 
+  function showProjector() {
+    projector = window.open(presentUrl, 'blurt-present')
+    return projector
+  }
+
   async function restart() {
+    const previous = readHost()
     clearHost()
     host = null
     game = null
@@ -113,7 +123,18 @@
     booting = true
     problem = ''
     try {
+      // Tell the old room it is over before opening a new one, so the wall and
+      // every phone still sitting in it find out rather than waiting forever.
+      if (previous?.hostToken) {
+        try {
+          await closeGame(previous.hostToken)
+        } catch {
+          // A room that cannot be closed is not a reason to block a new one.
+        }
+      }
       await startNewGame()
+      // Carry the projector across if this page opened one and it is still up.
+      if (projector && !projector.closed) projector.location.assign(`/present/${host.code}`)
     } catch (error) {
       problem = error.message
     } finally {
@@ -134,7 +155,7 @@
     } else if (key === 'r') {
       restart()
     } else if (key === 'p') {
-      window.open(presentUrl, 'blurt-present')
+      showProjector()
     }
   }
 
@@ -234,7 +255,7 @@
         <span class="eyebrow">Quiz</span>
         <strong>{quizTitle}</strong>
       </div>
-      <button class="ghost" onclick={() => window.open(presentUrl, 'blurt-present')}>
+      <button class="ghost" onclick={showProjector}>
         Open projector ↗
       </button>
     </header>
