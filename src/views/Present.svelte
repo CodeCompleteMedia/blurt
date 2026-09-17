@@ -34,6 +34,9 @@
   let phase = $derived(game?.phase ?? null)
   let counting = $derived(phase === 'recall' || phase === 'question_open')
   let totalVotes = $derived(counts.reduce((sum, n) => sum + n, 0))
+  // The room beat the clock rather than running out of it — worth saying, because
+  // "Time" over a question everyone answered reads as a cut-off.
+  let allIn = $derived(players.length > 0 && (game?.answered_count ?? 0) >= players.length)
 
   async function boot() {
     if (!code) {
@@ -146,7 +149,7 @@
         {#if counting}
           <CountdownRing startedAt={questionBase} {limit} />
         {:else}
-          <div class="times-up"><span>Time</span></div>
+          <div class="times-up" class:all-in={allIn}><span>{allIn ? 'All in' : 'Time'}</span></div>
         {/if}
       </div>
       <div class="tiles">
@@ -337,12 +340,21 @@
     place-items: center;
     width: 120px;
     height: 120px;
+    padding: 10px;
     border: 4px solid var(--accent);
     border-radius: 50%;
     font-family: var(--display);
     font-size: 34px;
+    line-height: 0.95;
+    text-align: center;
     color: var(--accent);
     text-transform: uppercase;
+  }
+
+  .times-up.all-in {
+    border-color: #3fbf87;
+    color: #3fbf87;
+    font-size: 26px;
   }
 
   .tiles {

@@ -41,6 +41,7 @@
   let left = $derived(questionBase ? remainingSeconds(questionBase, limit, now) : null)
   let presentUrl = $derived(host ? `/present/${host.code}` : '')
   let answered = $derived(roster.filter((p) => p.answeredCurrent).length)
+  let allIn = $derived(roster.length > 0 && answered >= roster.length)
 
   // The two columns a teacher actually acts on mid-lesson.
   let struggling = $derived(
@@ -53,7 +54,7 @@
     recall: 'Recall — choices hidden',
     blurt_claimed: 'Blurt claimed',
     question_open: 'Choices up',
-    locked: 'Time',
+    locked: 'Closed',
     results: 'Results',
     final: 'Finished',
   }
@@ -224,7 +225,7 @@
       </div>
       <div>
         <span class="eyebrow">Phase</span>
-        <strong>{PHASE_LABEL[phase] ?? phase}</strong>
+        <strong>{phase === 'locked' && allIn ? 'All in' : (PHASE_LABEL[phase] ?? phase)}</strong>
         {#if left != null && (phase === 'recall' || phase === 'question_open')}
           <span class="secs">{left}s</span>
         {/if}
