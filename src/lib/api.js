@@ -107,6 +107,49 @@ export async function updateGameSettings(hostToken, settings) {
   if (error) fail(error)
 }
 
+/**
+ * Where this phone stands, so a refresh or a lock screen puts it back exactly
+ * where it was. Throws once the seat is gone — which is how a phone finds out it
+ * has been removed.
+ */
+export async function mySeat(playerToken) {
+  const { data, error } = await db.rpc('my_seat', { p_player_token: playerToken })
+  if (error) fail(error)
+  const row = data?.[0]
+  return row
+    ? {
+        playerId: row.player_id,
+        name: row.player_name,
+        answeredCurrent: row.answered_current,
+        lockedOut: row.locked_out,
+      }
+    : null
+}
+
+export async function kickPlayer(hostToken, playerId) {
+  const { error } = await db.rpc('kick_player', { p_host_token: hostToken, p_player_id: playerId })
+  if (error) fail(error)
+}
+
+export async function renamePlayer(hostToken, playerId, name) {
+  const { error } = await db.rpc('rename_player', {
+    p_host_token: hostToken,
+    p_player_id: playerId,
+    p_name: name,
+  })
+  if (error) fail(error)
+}
+
+export async function setPaused(hostToken, paused) {
+  const { error } = await db.rpc('set_paused', { p_host_token: hostToken, p_paused: paused })
+  if (error) fail(error)
+}
+
+export async function extendQuestion(hostToken, seconds) {
+  const { error } = await db.rpc('extend_question', { p_host_token: hostToken, p_seconds: seconds })
+  if (error) fail(error)
+}
+
 /** Ends a room. The wall and the phones are watching for this. */
 export async function closeGame(hostToken) {
   const { error } = await db.rpc('close_game', { p_host_token: hostToken })

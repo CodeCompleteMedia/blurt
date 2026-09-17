@@ -33,6 +33,7 @@
   let limit = $derived((question?.seconds ?? 20) * 1000)
   let phase = $derived(game?.phase ?? null)
   let closed = $derived(Boolean(game?.closed_at))
+  let frozenAt = $derived(game?.paused_at ? Date.parse(game.paused_at) : null)
   let counting = $derived(phase === 'recall' || phase === 'question_open')
   let totalVotes = $derived(counts.reduce((sum, n) => sum + n, 0))
   // Only reachable if the "All in" beat is restored — an all-in question now goes
@@ -88,7 +89,8 @@
       return
     }
 
-    const key = `${p}:${index}:${started}`
+    // The extension is part of the key: more time means a new limit to fetch.
+    const key = `${p}:${index}:${started}:${game?.extra_seconds}`
     if (key === loadedKey) return
     loadedKey = key
     questionBase = clockBase(started, limit, Date.now())
@@ -143,8 +145,10 @@
     <section class="recall">
       <h2 class="big-q">{question.text}</h2>
       <div class="recall-foot">
-        <p class="prompt">Know it? <strong>Blurt.</strong></p>
-        <CountdownRing startedAt={questionBase} {limit} size={96} />
+        <p class="prompt">
+          {#if frozenAt}<strong>Paused</strong>{:else}Know it? <strong>Blurt.</strong>{/if}
+        </p>
+        <CountdownRing startedAt={questionBase} {limit} size={96} {frozenAt} />
       </div>
     </section>
   {:else if phase === 'blurt_claimed'}
@@ -158,7 +162,7 @@
       <div class="q-head">
         <h2>{question.text}</h2>
         {#if counting}
-          <CountdownRing startedAt={questionBase} {limit} />
+          <CountdownRing startedAt={questionBase} {limit} {frozenAt} />
         {:else}
           <div class="times-up" class:all-in={allIn}><span>{allIn ? 'All in' : 'Time'}</span></div>
         {/if}
@@ -172,7 +176,10 @@
           />
         {/each}
       </div>
-      <p class="answered">{game.answered_count} of {players.length} answered</p>
+      <p class="answered">
+        {#if frozenAt}<strong class="paused-note">Paused</strong> &middot; {/if}
+        {game.answered_count} of {players.length} answered
+      </p>
     </section>
   {:else if phase === 'results' && question}
     <section class="results">
@@ -281,7 +288,7 @@
     padding: 8px 18px;
     border-radius: 999px;
     background: var(--surface);
-    font-size: clamp(16px, 1.6vw, 22px);
+    font-size: clamp(16px, 2vw, 38px);
   }
 
   /* Recall — the question alone, as large as it will go */
@@ -346,7 +353,7 @@
 
   .q-head h2 {
     font-family: var(--body);
-    font-size: clamp(28px, 4vw, 54px);
+    font-size: clamp(28px, 4.4vw, 84px);
     font-weight: 600;
     line-height: 1.1;
     text-transform: none;
@@ -385,7 +392,12 @@
   .answered {
     margin: 0;
     color: var(--muted);
+    font-size: clamp(14px, 1.5vw, 24px);
     font-variant-numeric: tabular-nums;
+  }
+
+  .paused-note {
+    color: var(--accent);
   }
 
   /* At results the tiles are the chart, so they take the room rather than

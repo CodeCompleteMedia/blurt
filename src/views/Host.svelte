@@ -12,8 +12,12 @@
     fetchGame,
     firstQuiz,
     hostQuestion,
+    extendQuestion,
     judgeBlurt,
+    kickPlayer,
+    renamePlayer,
     rosterStats,
+    setPaused,
     updateGameSettings,
     watchGame,
   } from '../lib/api.js'
@@ -65,6 +69,7 @@
   let left = $derived(questionBase ? remainingSeconds(questionBase, limit, now) : null)
   let presentUrl = $derived(host ? `/present/${host.code}` : '')
   let answered = $derived(roster.filter((p) => p.answeredCurrent).length)
+  let clockRunning = $derived(phase === 'recall' || phase === 'question_open')
   let allIn = $derived(roster.length > 0 && answered >= roster.length)
 
   // The two columns a teacher actually acts on mid-lesson.
@@ -129,6 +134,39 @@
 
   const step = () => run(() => advanceGame(host.hostToken))
   const judge = (correct) => run(() => judgeBlurt(host.hostToken, correct))
+  const extend = () => run(() => extendQuestion(host.hostToken, 15))
+  const togglePause = () => run(() => setPaused(host.hostToken, !game?.paused_at))
+
+  // Removing someone takes two taps on purpose. It deletes their score, and the
+  // button sits in a table a teacher is jabbing at mid-lesson.
+  let confirming = $state(null)
+  let renaming = $state(null)
+  let draftName = $state('')
+
+  function askKick(id) {
+    confirming = id
+    setTimeout(() => {
+      if (confirming === id) confirming = null
+    }, 3000)
+  }
+
+  async function kick(id) {
+    confirming = null
+    await run(() => kickPlayer(host.hostToken, id))
+  }
+
+  function startRename(p) {
+    renaming = p.id
+    draftName = p.name
+  }
+
+  async function commitRename(event) {
+    event.preventDefault()
+    const id = renaming
+    const name = draftName.trim()
+    renaming = null
+    if (id && name.length >= 2) await run(() => renamePlayer(host.hostToken, id, name))
+  }
 
   function showProjector() {
     projector = window.open(presentUrl, 'blurt-present')
@@ -166,7 +204,8 @@
 
   function onkeydown(event) {
     const key = event.key.toLowerCase()
-    if (event.target instanceof HTMLInputElement) return
+    // Typing a name, or type-ahead inside a dropdown, is not a shortcut.
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return
 
     if (phase === 'blurt_claimed' && (key === 'y' || key === 'n')) {
       event.preventDefault()
@@ -178,6 +217,12 @@
       restart()
     } else if (key === 'p') {
       showProjector()
+    } else if (key === 's') {
+      showSettings = !showSettings
+    } else if (key === 'e' && clockRunning) {
+      extend()
+    } else if (key === 'h' && clockRunning) {
+      togglePause()
     }
   }
 
@@ -210,7 +255,8 @@
       loadedKey = ''
       return
     }
-    const key = `${p}:${index}:${started}`
+    // The extension is part of the key: more time means a new limit to fetch.
+    const key = `${p}:${index}:${started}:${game?.extra_seconds}`
     if (key === loadedKey) return
     loadedKey = key
     questionBase = clockBase(started, limit, Date.now())
@@ -229,7 +275,7 @@
   // class, not a stopwatch.
   $effect(() => {
     if (phase !== 'recall' && phase !== 'question_open') return
-    if (!questionBase || !host) return
+    if (!questionBase || !host || game?.paused_at) return
     if (questionBase + limit - beat > 0) return
     const key = `${phase}:${game.question_index}:${questionBase}`
     if (autoLockedKey === key) return
@@ -417,6 +463,15 @@
           Answer: <strong>{question.choices?.[question.correctIndex] ?? '—'}</strong>
           {#if phase === 'recall'}<span class="muted"> · hidden from the room</span>{/if}
         </p>
+        {#if clockRunning}
+          <div class="clock-controls">
+            <button class="ghost" onclick={extend}>+15s <kbd>E</kbd></button>
+            <button class="ghost" class:held={game.paused_at} onclick={togglePause}>
+              {game.paused_at ? 'Resume' : 'Pause'} <kbd>H</kbd>
+            </button>
+            {#if game.extra_seconds > 0}<span class="muted">+{game.extra_seconds}s added</span>{/if}
+          </div>
+        {/if}
       </div>
     {/if}
 
@@ -432,14 +487,30 @@
           <thead>
             <tr>
               <th>#</th><th>Name</th><th class="r">Score</th><th class="r">Right</th>
-              <th class="r">Streak</th><th class="r">Blurts</th><th class="r">Avg</th><th>State</th>
+              <th class="r">Streak</th><th class="r">Blurts</th><th class="r">Avg</th><th>State</th><th></th>
             </tr>
           </thead>
           <tbody>
             {#each roster as p (p.id)}
               <tr class:quiet={p.quietFor >= 2}>
                 <td class="muted">{p.rank}</td>
-                <td class="name">{p.name}</td>
+                <td class="name">
+                  {#if renaming === p.id}
+                    <form onsubmit={commitRename}>
+                      <!-- svelte-ignore a11y_autofocus -->
+                      <input
+                        id="rename-{p.id}"
+                        bind:value={draftName}
+                        maxlength="20"
+                        autofocus
+                        onblur={() => (renaming = null)}
+                        aria-label="New name for {p.name}"
+                      />
+                    </form>
+                  {:else}
+                    {p.name}
+                  {/if}
+                </td>
                 <td class="r">{p.score.toLocaleString()}</td>
                 <td class="r">{p.answered ? `${p.correct}/${p.answered}` : '—'}</td>
                 <td class="r">{p.streak || '—'}</td>
@@ -454,6 +525,14 @@
                     <span class="pill wait">waiting</span>
                   {/if}
                 </td>
+                <td class="acts">
+                  <button class="link" onclick={() => startRename(p)}>Rename</button>
+                  {#if confirming === p.id}
+                    <button class="link danger" onclick={() => kick(p.id)}>Sure?</button>
+                  {:else}
+                    <button class="link" onclick={() => askKick(p.id)}>Remove</button>
+                  {/if}
+                </td>
               </tr>
             {/each}
           </tbody>
@@ -464,7 +543,7 @@
     {/if}
 
     <footer class="eyebrow">
-      Space advances · Y/N judges a blurt · S settings · P projector · R new room
+      Space advances · Y/N judges · E +15s · H pause · S settings · P projector · R new room
     </footer>
   {/if}
 </main>
@@ -663,6 +742,48 @@
     gap: 10px;
   }
 
+  .clock-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    font-size: 13px;
+  }
+
+  .ghost.held {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .acts {
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  .link {
+    padding: 2px 6px;
+    font-size: 12px;
+    color: var(--muted);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .link.danger {
+    color: #f09070;
+    font-weight: 600;
+  }
+
+  .name input {
+    width: 100%;
+    max-width: 180px;
+    padding: 4px 8px;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    background: var(--ground);
+    color: var(--ink);
+    font: inherit;
+  }
+
   .tile {
     display: grid;
     gap: 2px;
@@ -767,7 +888,7 @@
   /* The toggles carry their own on/off styling; without this exclusion the
      generic rule outranks `.toggle` on specificity and both states render the
      same solid accent, which is worse than no styling at all. */
-  button:not(.ghost):not(.yes):not(.no):not(.toggle) {
+  button:not(.ghost):not(.yes):not(.no):not(.toggle):not(.link) {
     justify-self: start;
     padding: 10px 16px;
     border-radius: 8px;

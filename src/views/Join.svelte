@@ -8,7 +8,10 @@
   let name = $state('')
   let step = $state('code')
   let busy = $state(false)
-  let problem = $state('')
+  // Sent here by /play when the seat stopped existing. Said once, plainly — a
+  // student bounced to a blank join form would assume the app broke.
+  const removed = new URLSearchParams(window.location.search).has('removed')
+  let problem = $state(removed ? 'You were removed from the room.' : '')
 
   let field = $state(null)
 
@@ -96,6 +99,10 @@
     gap: 22px;
     width: 100%;
     max-width: 380px;
+    /* A text input has an intrinsic width of about twenty characters, and a grid
+       item will not shrink below its content unless told it may. At 24px type
+       that pushed the form 3px past a 320px screen. */
+    min-width: 0;
   }
 
   h1 {
@@ -117,6 +124,8 @@
   }
 
   input {
+    width: 100%;
+    min-width: 0;
     padding: 18px;
     border: 1px solid var(--line);
     border-radius: 10px;

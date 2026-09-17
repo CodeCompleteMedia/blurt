@@ -33,7 +33,7 @@
     padding: 14px 20px;
     border-radius: 8px;
     background: var(--surface);
-    font-size: clamp(18px, 2vw, 26px);
+    font-size: clamp(18px, 2.4vw, 46px);
   }
 
   li:first-child {

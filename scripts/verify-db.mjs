@@ -255,5 +255,64 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
     seen.data?.[0]?.q_seconds === 20, `${seen.data?.[0]?.q_seconds}s`)
 }
 
+// Phase 3: the things a class will try in the first five minutes.
+{
+  const internal = await db.rpc('close_question_if_all_in', { p_game_id: FORGED })
+  check('internal helpers are not callable from a phone', internal.error !== null,
+    internal.error?.message?.slice(0, 60))
+
+  const { data: m9 } = await db.rpc('create_game', { p_quiz_id: quiz.data.id })
+  const H9 = m9[0].host_token
+  const C9 = m9[0].code
+
+  for (const bad of ['Teacher', 'Mr Patino', 'sh1t', 'xXfuuuckXx']) {
+    const r = await db.rpc('join_game', { p_code: C9, p_name: bad })
+    check(`"${bad}" is refused as a name`, r.error !== null, r.error?.message)
+  }
+  for (const fine of ['Shital', 'Nazir', 'Cassandra']) {
+    const r = await db.rpc('join_game', { p_code: C9, p_name: fine })
+    check(`"${fine}" is not caught by the filter`, r.error === null, r.error?.message)
+  }
+
+  const { data: a } = await db.rpc('join_game', { p_code: C9, p_name: 'Anna' })
+  const { data: t } = await db.rpc('join_game', { p_code: C9, p_name: 'Holdout' })
+
+  for (const [name, args] of [
+    ['kick_player', { p_host_token: FORGED, p_player_id: t[0].player_id }],
+    ['rename_player', { p_host_token: FORGED, p_player_id: t[0].player_id, p_name: 'Pwned' }],
+    ['set_paused', { p_host_token: FORGED, p_paused: true }],
+    ['extend_question', { p_host_token: FORGED, p_seconds: 60 }],
+  ]) {
+    const r = await db.rpc(name, args)
+    check(`a student cannot call ${name}`, r.error !== null, r.error?.message)
+  }
+
+  // Everyone but Holdout answers, so Holdout is all the room is waiting on.
+  await db.rpc('update_game_settings', { p_host_token: H9, p_blurt_enabled: false })
+  await db.rpc('advance_game', { p_host_token: H9 })
+  await db.rpc('submit_answer', { p_player_token: a[0].player_token, p_choice: 0 })
+
+  const seat = await db.rpc('my_seat', { p_player_token: a[0].player_token })
+  check('a reloaded phone learns it has already answered',
+    seat.data?.[0]?.answered_current === true && !('correct' in (seat.data?.[0] ?? {})))
+
+  await db.rpc('set_paused', { p_host_token: H9, p_paused: true })
+  const held = await db.rpc('submit_answer', { p_player_token: t[0].player_token, p_choice: 0 })
+  check('nothing is accepted while paused', held.error !== null, held.error?.message)
+  await db.rpc('set_paused', { p_host_token: H9, p_paused: false })
+
+  const before = await db.rpc('current_question', { p_code: C9 })
+  await db.rpc('extend_question', { p_host_token: H9, p_seconds: 15 })
+  const after = await db.rpc('current_question', { p_code: C9 })
+  check('an extension reaches the screens, not just the deadline',
+    after.data?.[0]?.q_seconds === before.data?.[0]?.q_seconds + 15,
+    `${before.data?.[0]?.q_seconds}s -> ${after.data?.[0]?.q_seconds}s`)
+
+  await db.rpc('kick_player', { p_host_token: H9, p_player_id: t[0].player_id })
+  const gone = await db.rpc('my_seat', { p_player_token: t[0].player_token })
+  check('a removed player\'s seat stops resolving', gone.error !== null, gone.error?.message)
+  await db.rpc('close_game', { p_host_token: H9 })
+}
+
 console.log(`\n  ${failures ? `${failures} failed` : 'all checks passed'}  (test room ${code})\n`)
 process.exit(failures ? 1 : 0)

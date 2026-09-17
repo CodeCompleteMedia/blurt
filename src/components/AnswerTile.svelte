@@ -64,7 +64,7 @@
   }
 
   .text {
-    font-size: clamp(18px, 2.1vw, 28px);
+    font-size: clamp(18px, 2.8vw, 54px);
     font-weight: 600;
     line-height: 1.2;
   }
@@ -104,7 +104,7 @@
   .count {
     margin-left: auto;
     font-family: var(--display);
-    font-size: clamp(28px, 3vw, 44px);
+    font-size: clamp(28px, 3.6vw, 72px);
     font-variant-numeric: tabular-nums;
     line-height: 1;
   }

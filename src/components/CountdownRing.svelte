@@ -3,7 +3,8 @@
 
   // Reads the clock, never a server tick: the ring is a pure function of
   // `startedAt` and the limit, so it stays right through a missed poll.
-  let { startedAt, limit, size = 120 } = $props()
+  // `frozenAt` holds the ring still while the teacher has the game paused.
+  let { startedAt, limit, size = 120, frozenAt = null } = $props()
 
   let now = $state(Date.now())
 
@@ -11,8 +12,9 @@
 
   const r = 46
   const circumference = 2 * Math.PI * r
-  let fraction = $derived(remainingFraction(startedAt, limit, now))
-  let seconds = $derived(remainingSeconds(startedAt, limit, now))
+  let at = $derived(frozenAt ?? now)
+  let fraction = $derived(remainingFraction(startedAt, limit, at))
+  let seconds = $derived(remainingSeconds(startedAt, limit, at))
 </script>
 
 <div class="ring" style="width: {size}px; height: {size}px">

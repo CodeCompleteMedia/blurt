@@ -7,9 +7,17 @@
   import AnswerTile from '../components/AnswerTile.svelte'
   import Leaderboard from '../components/Leaderboard.svelte'
   import { SHAPES } from '../lib/answers.js'
-  import { blurt, fetchGame, fetchPlayers, myResult, submitAnswer, watchGame } from '../lib/api.js'
+  import {
+    blurt,
+    fetchGame,
+    fetchPlayers,
+    myResult,
+    mySeat,
+    submitAnswer,
+    watchGame,
+  } from '../lib/api.js'
   import { ordinal } from '../lib/ordinal.js'
-  import { clearSeat, readSeat } from '../lib/session.js'
+  import { clearSeat, readSeat, writeSeat } from '../lib/session.js'
 
   let seat = $state(null)
   let game = $state(null)
@@ -24,6 +32,11 @@
   let booting = $state(true)
   let result = $state(null)
   let resultKey = ''
+  // What the server says about this seat. It outlives a refresh, which local
+  // state does not — a phone that reloads mid-question must not be offered the
+  // answer pad again for a question it has already answered.
+  let standing = $state(null)
+  let standingKey = ''
 
   // By id normally; by name for a seat written before ids were stored, so an
   // older phone shows a score rather than a dash.
@@ -33,12 +46,19 @@
       null,
   )
   let phase = $derived(game?.phase ?? null)
-  let locked = $derived(picked != null && answeredIndex === game?.question_index)
+  let locked = $derived(
+    (picked != null && answeredIndex === game?.question_index) || Boolean(standing?.answeredCurrent),
+  )
+  let paused = $derived(Boolean(game?.paused_at))
 
   // Straight from the game row rather than from local state: the server decides
   // who holds the floor, and the phone just reads it.
   let iHaveTheFloor = $derived(game?.blurted_by === seat?.playerId)
-  let lockedOut = $derived(iHaveTheFloor && phase === 'question_open')
+  // Only when the room plays with the lockout. With it off, a wrong blurt still
+  // gets the choices like everyone else.
+  let lockedOut = $derived(
+    Boolean(game?.blurt_lockout) && iHaveTheFloor && phase === 'question_open',
+  )
 
   async function boot() {
     const saved = readSeat()
@@ -119,6 +139,29 @@
     return watch.stop
   })
 
+  // Ask the server where this seat stands whenever the game moves. One small
+  // call per phase change, and it is also how a removed player finds out: the
+  // token stops resolving.
+  $effect(() => {
+    const key = `${game?.phase}:${game?.question_index}:${players.length}`
+    if (!seat?.playerToken || !game || key === standingKey) return
+    standingKey = key
+    void (async () => {
+      try {
+        standing = await mySeat(seat.playerToken)
+        if (standing && !seat.playerId) {
+          seat = { ...seat, playerId: standing.playerId }
+          writeSeat(seat)
+        }
+      } catch (error) {
+        if (/not in this game/i.test(error.message)) {
+          clearSeat()
+          window.location.assign('/?removed=1')
+        }
+      }
+    })()
+  })
+
   // The host closed this room. A student has nothing to do here and no way to
   // find the new code, so send them back to the join screen with a clean seat.
   $effect(() => {
@@ -172,6 +215,12 @@
       <p class="eyebrow">You're in</p>
       <h1>{seat.name}</h1>
       <p class="muted">Look up at the board.</p>
+    </div>
+  {:else if paused && (phase === 'recall' || phase === 'question_open')}
+    <div class="centred">
+      <p class="eyebrow">Hold on</p>
+      <h1 class="hush">Paused</h1>
+      <p class="muted">Your teacher has stopped the clock.</p>
     </div>
   {:else if phase === 'recall'}
     <div class="blurt-wrap">

@@ -9,6 +9,7 @@ vercel env pull .env.local --yes   # VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY
 npm run dev                        # http://localhost:5173
 npm test                           # clock and router
 npm run verify:db                  # the security properties, against the real database
+npm run load                       # 40 phones at once; `npm run load -- 60` for more
 ```
 
 ## The four surfaces
@@ -21,8 +22,19 @@ npm run verify:db                  # the security properties, against the real d
 | `/host`          | the teacher | Live roster, the answer key, and every control                      |
 
 Open `/host` and it opens a room, then press `P` for the projector window.
-Space advances, `Y`/`N` judges a blurt, `R` starts a new room. Recall and the
-answer window both close themselves.
+
+| Key | |
+| --- | --- |
+| `Space` | advance |
+| `Y` / `N` | judge a blurt |
+| `E` | fifteen more seconds on the clock |
+| `H` | hold — pause and resume, and the time comes back |
+| `S` | settings |
+| `P` | projector window |
+| `R` | new room (closes this one for everyone) |
+
+Recall and the answer window close themselves. Each roster row has Rename and
+Remove; Remove takes two taps because it deletes a score.
 
 `/present` holds no credential — it is a screen, not a session, identified by
 the room code in its path. The host token lives on `/host` instead, which is the
@@ -105,6 +117,30 @@ is the later change that quietly loosens one. A convenience `select` on
 `questions` would hand every phone the answer key, and nothing in `npm test`
 would notice.
 
+## In a real room
+
+Phase 3 was about the things that only go wrong with thirty teenagers.
+
+- **A phone that refreshes or locks comes back where it was.** `my_seat` tells it
+  whether it has already answered — but not whether it was right; that still
+  waits for results.
+- **Names are filtered in the database**, so the filter cannot be reached around.
+  It undoes the usual disguises (`sh1t`, `fuuuck`, `b!tch`) and refuses anything
+  passing as the person in charge. It is there for the lazy attempts. Rename and
+  Remove are the answer to the rest — no filter survives a determined
+  fourteen-year-old.
+- **A room takes sixty players.** Past that it is a script, not a class.
+- **Pause hands the time back.** A fire drill costs nobody a point.
+- **Load:** sixty simultaneous claims produce exactly one winner, and sixty
+  simultaneous answers are all counted, each volley inside about 400ms.
+
+The adversarial pass that opened the phase found internal helper functions
+callable with the anon key. Migration `0002` revoked execute "on all functions",
+which only ever meant the functions that existed that day — Postgres grants each
+new one to `PUBLIC`. Defaults are closed now, so **every new function that is
+meant to be an API needs an explicit `grant`**, and `verify:db` checks that the
+internal ones refuse.
+
 ## Decisions worth revisiting
 
 Things deliberately left out, with what it would cost to put them back. Each one
@@ -136,3 +172,22 @@ extra step.
 
 **Worth reversing if:** a class roster has names that need it. One student is
 reason enough.
+
+### The name filter turns away some real names
+
+Whole-word matches include `dick`, so a student who goes by Dick cannot join under
+that name. Matching those words anywhere instead would block Shital, Nazir,
+Pornchai and Cassandra, which is the worse trade. **If it bites:** delete the row
+from `blocked_words` — the list is data, not code.
+
+### Anyone with the anon key can list open rooms
+
+`games` and `players` are readable so Realtime can push to them, which means a
+curious student can see every room code in use and join another class's game.
+Nothing secret leaks, and Remove deals with a visitor. **Worth fixing if** more
+than one teacher uses this at once: scope reads to a room the caller has joined.
+
+### Anyone can open a room
+
+`create_game` takes no credential, so a script could create rooms all day. They
+cost a row each and affect nobody. **Worth fixing when** accounts exist.
