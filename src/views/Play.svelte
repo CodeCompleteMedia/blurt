@@ -14,6 +14,7 @@
     myResult,
     mySeat,
     submitAnswer,
+    submitTextAnswer,
     watchGame,
   } from '../lib/api.js'
   import { ordinal } from '../lib/ordinal.js'
@@ -28,6 +29,7 @@
   let busy = $state(false)
   let missed = $state(false)
   let tooSlow = $state(false)
+  let draft = $state('')
   let problem = $state('')
   let booting = $state(true)
   let result = $state(null)
@@ -112,6 +114,26 @@
       answeredIndex = null
       // Missing the deadline is an ordinary thing that happens in a game, not a
       // fault. It gets a sentence, not an error screen with a way out.
+      if (/too late|not taking/i.test(error.message)) tooSlow = true
+      else problem = error.message
+    } finally {
+      busy = false
+    }
+  }
+
+  async function sendText(event) {
+    event.preventDefault()
+    const text = draft.trim()
+    if (!text || phase !== 'question_open' || locked || lockedOut || busy) return
+    busy = true
+    picked = -1
+    answeredIndex = game.question_index
+    try {
+      await submitTextAnswer(seat.playerToken, text)
+      draft = ''
+    } catch (error) {
+      picked = null
+      answeredIndex = null
       if (/too late|not taking/i.test(error.message)) tooSlow = true
       else problem = error.message
     } finally {
@@ -255,17 +277,36 @@
       <h1 class="hush">Too slow</h1>
       <p class="muted">Next one's yours.</p>
     </div>
+  {:else if phase === 'question_open' && !locked && standing?.questionKind === 'text'}
+    <form class="typing" onsubmit={sendText}>
+      <label class="eyebrow" for="typed-answer">Type your answer</label>
+      <!-- svelte-ignore a11y_autofocus -->
+      <input
+        id="typed-answer"
+        bind:value={draft}
+        maxlength="80"
+        autocomplete="off"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+        enterkeyhint="send"
+        autofocus
+      />
+      <button type="submit" disabled={busy || !draft.trim()}>Lock it in</button>
+      <p class="muted small">Spelling counts. Capitals and punctuation don't.</p>
+    </form>
   {:else if phase === 'question_open' && !locked}
     <header><span class="eyebrow">Look up at the board</span></header>
-    <div class="pad">
-      {#each SHAPES as shape, i}
+    <!-- As many shapes as the question has choices: two for true or false. -->
+    <div class="pad" class:pair={(standing?.choiceCount ?? 4) === 2}>
+      {#each SHAPES.slice(0, standing?.choiceCount || 4) as shape, i}
         <AnswerTile {shape} showText={false} onclick={() => pick(i)} disabled={busy} />
       {/each}
     </div>
   {:else if phase === 'question_open' || phase === 'locked'}
     <div class="centred">
       <h1 class="accent">Locked in</h1>
-      {#if picked != null}<p class="muted">{SHAPES[picked].label}</p>{/if}
+      {#if picked != null && picked >= 0}<p class="muted">{SHAPES[picked].label}</p>{/if}
     </div>
   {:else if phase === 'results'}
     <div class="centred verdict" class:right={result?.correct} class:wrong={result && !result.correct}>
@@ -414,6 +455,55 @@
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
+  }
+
+  /* True or false: two tall targets rather than two squat ones. */
+  .pad.pair {
+    grid-template-columns: 1fr;
+  }
+
+  .typing {
+    grid-row: 1 / -1;
+    display: grid;
+    align-content: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+    min-width: 0;
+  }
+
+  .typing input {
+    width: 100%;
+    min-width: 0;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    /* 16px or more, or iOS zooms the page when the field takes focus. */
+    font-size: 22px;
+    text-align: center;
+  }
+
+  .typing button {
+    padding: 18px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #1a0d07;
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .typing button:disabled {
+    background: var(--surface-2);
+    color: var(--muted);
+  }
+
+  .typing .small {
+    text-align: center;
+    max-width: none;
   }
 
   .pad :global(.tile) {

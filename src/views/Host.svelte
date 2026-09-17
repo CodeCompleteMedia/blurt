@@ -522,7 +522,7 @@
           <span class="eyebrow">Has the floor</span>
           <strong class="who">{floor?.name ?? '…'}</strong>
         </div>
-        <p class="answer">Answer: <strong>{question?.choices?.[question?.correctIndex] ?? '—'}</strong></p>
+        <p class="answer">Answer: <strong>{question?.answer ?? '—'}</strong></p>
         <div class="verdict">
           <button class="yes" onclick={() => judge(true)}>Correct <kbd>Y</kbd></button>
           <button class="no" onclick={() => judge(false)}>Wrong <kbd>N</kbd></button>
@@ -532,7 +532,7 @@
       <div class="panel q">
         <p class="qtext">{question.text}</p>
         <p class="answer">
-          Answer: <strong>{question.choices?.[question.correctIndex] ?? '—'}</strong>
+          Answer: <strong>{question.answer ?? '—'}</strong>
           {#if phase === 'recall'}<span class="muted"> · hidden from the room</span>{/if}
         </p>
         {#if clockRunning}

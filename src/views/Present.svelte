@@ -10,6 +10,7 @@
     blurter,
     currentQuestion,
     distribution,
+    textDistribution,
     fetchGame,
     fetchPlayers,
     watchGame,
@@ -23,6 +24,8 @@
   let players = $state([])
   let question = $state(null)
   let counts = $state([])
+  // What the room typed, for a question with no tiles to tally.
+  let typed = $state([])
   let floor = $state(null)
   let problem = $state('')
   let booting = $state(true)
@@ -99,6 +102,7 @@
       try {
         question = await currentQuestion(code)
         counts = p === 'results' ? await distribution(code) : []
+        typed = p === 'results' && question?.kind === 'text' ? await textDistribution(code) : []
         floor = p === 'blurt_claimed' || p === 'results' ? await blurter(code) : null
       } catch (error) {
         problem = error.message
@@ -142,7 +146,8 @@
   {:else if phase === 'recall' && question}
     <!-- No choices on screen and none in the payload. Knowing it beats
          recognising it, and that is the whole point of the window. -->
-    <section class="recall">
+    <section class="recall" class:with-image={question.image}>
+      {#if question.image}<img class="picture" src={question.image} alt="" />{/if}
       <h2 class="big-q">{question.text}</h2>
       <div class="recall-foot">
         <p class="prompt">
@@ -167,15 +172,26 @@
           <div class="times-up" class:all-in={allIn}><span>{allIn ? 'All in' : 'Time'}</span></div>
         {/if}
       </div>
-      <div class="tiles">
-        {#each question.choices ?? [] as choice, i}
-          <AnswerTile
-            shape={shapeFor(i)}
-            text={choice}
-            state={phase === 'locked' ? 'dimmed' : 'idle'}
-          />
-        {/each}
-      </div>
+      {#if question.kind === 'text'}
+        <!-- No tiles to show: the answer is whatever they can produce. -->
+        <div class="typed-prompt" class:with-image={question.image}>
+          {#if question.image}<img class="picture" src={question.image} alt="" />{/if}
+          <p>Type your answer</p>
+        </div>
+      {:else}
+        <div class="q-body" class:with-image={question.image}>
+          {#if question.image}<img class="picture" src={question.image} alt="" />{/if}
+          <div class="tiles" class:pair={question.choices?.length === 2}>
+            {#each question.choices ?? [] as choice, i}
+              <AnswerTile
+                shape={shapeFor(i)}
+                text={choice}
+                state={phase === 'locked' ? 'dimmed' : 'idle'}
+              />
+            {/each}
+          </div>
+        </div>
+      {/if}
       <p class="answered">
         {#if frozenAt}<strong class="paused-note">Paused</strong> &middot; {/if}
         {game.answered_count} of {players.length} answered
@@ -188,8 +204,20 @@
           <span class="eyebrow">
             {floor?.wasCorrect ? `${floor.name} blurted it` : 'The answer was'}
           </span>
-          {question.choices?.[question.correctIndex] ?? '—'}
+          {question.answer ?? '—'}
         </h2>
+        {#if question.kind === 'text'}
+          <ol class="typed">
+            {#each typed as row}
+              <li class:right={row.correct}>
+                <span class="what">{row.text}</span>
+                <span class="n">{row.count}</span>
+              </li>
+            {:else}
+              <li class="none">Nobody typed an answer.</li>
+            {/each}
+          </ol>
+        {:else}
         <div class="tiles result-tiles">
           {#each question.choices ?? [] as choice, i}
             <AnswerTile
@@ -201,6 +229,7 @@
             />
           {/each}
         </div>
+        {/if}
       </div>
       <div class="right">
         <p class="eyebrow">Standings</p>
@@ -387,6 +416,86 @@
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
     align-content: center;
+  }
+
+  /* A picture shares the screen with the question rather than replacing it, and
+     never grows past the space it is given — a tall phone photo must not push
+     the choices off the wall. */
+  .picture {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    min-height: 0;
+    object-fit: contain;
+    border-radius: 10px;
+    justify-self: center;
+  }
+
+  .recall.with-image {
+    grid-template-rows: minmax(0, 1fr) auto auto;
+  }
+
+  .q-body {
+    display: grid;
+    min-height: 0;
+    align-content: center;
+  }
+
+  .q-body.with-image,
+  .typed-prompt.with-image {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 24px;
+    align-items: center;
+  }
+
+  .tiles.pair {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .typed-prompt {
+    display: grid;
+    min-height: 0;
+    place-items: center;
+    font-size: clamp(24px, 3.4vw, 60px);
+    color: var(--muted);
+  }
+
+  .typed-prompt p {
+    margin: 0;
+  }
+
+  .typed {
+    display: grid;
+    gap: 10px;
+    align-content: start;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: clamp(18px, 2.6vw, 48px);
+  }
+
+  .typed li {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 12px 20px;
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--muted);
+  }
+
+  .typed li.right {
+    color: var(--ink);
+    box-shadow: 0 0 0 3px #3fbf87 inset;
+  }
+
+  .typed .n {
+    font-family: var(--display);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .typed .none {
+    justify-content: center;
   }
 
   .answered {

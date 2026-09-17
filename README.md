@@ -10,16 +10,18 @@ npm run dev                        # http://localhost:5173
 npm test                           # clock and router
 npm run verify:db                  # the security properties, against the real database
 npm run load                       # 40 phones at once; `npm run load -- 60` for more
+npm run check:migrations           # rebuild every migration from an empty Postgres
 ```
 
-## The four surfaces
+## The five surfaces
 
 | Path             | Who         | What it shows                                                     |
 | ---------------- | ----------- | ----------------------------------------------------------------- |
 | `/`              | student     | Room code, then name                                               |
 | `/play`          | student     | One blurt button, or four shapes — never the question text         |
 | `/present/CODE`  | the wall    | Question, countdown, distribution, leaderboard. No controls        |
-| `/host`          | the teacher | Live roster, the answer key, and every control                      |
+| `/host`          | the teacher | Live roster, the answer key, and every control. Signed in          |
+| `/edit`          | the teacher | Write, reorder, import and illustrate quizzes. Signed in           |
 
 Open `/host` and it opens a room, then press `P` for the projector window.
 
@@ -116,6 +118,51 @@ Run the second one after every migration. The policies are right today; the risk
 is the later change that quietly loosens one. A convenience `select` on
 `questions` would hand every phone the answer key, and nothing in `npm test`
 would notice.
+
+## Writing quizzes
+
+`/edit` saves as you type. A question that cannot be saved yet says why on its own
+card — it never fails quietly on the way out.
+
+Three kinds of question: up to four choices, true or false, and type-the-answer.
+A typed answer is forgiven what a marker would forgive — case, spacing,
+punctuation, a leading "the" — so `  OL. ` matches `<ol>`. **Spelling is not
+forgiven.** A fuzzy match that accepts "mitocondria" also accepts answers that are
+simply wrong; a student who loses a point to a typo can argue it with you, and one
+who gains a point from a lucky near-miss never will. Give alternatives instead.
+
+What the room typed goes up on the wall at results, through the same filter as
+names — a class learns within one question that the answer box is a way onto the
+projector.
+
+**Importing.** Paste rows straight out of Google Sheets or Excel (they arrive
+tab-separated, which is detected) or pick a `.csv`. Columns are `question, a, b,
+c, d, correct, seconds`, in that order or under headers in any order. `correct`
+may be a letter, a number, or the answer spelled out. Leave the choices empty and
+put `true`/`false` for a true-or-false question, or `answer|another way` for a
+typed one. Bad rows are listed by their spreadsheet line and left out; good rows
+still come in.
+
+**Pictures** are shrunk in the browser to 1600px before upload. A phone photo is
+several megabytes, and the projector's laptop has to fetch it over school wifi at
+the instant the question appears.
+
+**Deleting a quiz archives it.** Every game played from a quiz points back at it,
+and later reports need the questions a class was actually asked.
+
+## Who is the teacher
+
+Accounts are Supabase Auth, email and password. Only a quiz's owner can read it,
+change it, or host it — that last one matters most: the host sees the answer key,
+so before ownership existed anyone could open a private room on any quiz and walk
+off with it. Students never sign in to anything.
+
+Once your own account exists, **turn off new sign-ups** in Supabase (Authentication
+→ Sign In / Providers → "Allow new users to sign up"). A stranger with an account
+could only ever see their own quizzes, but there is no reason to let them make one.
+
+`verify:db` and `load` act as a teacher, from `BLURT_TEST_EMAIL` and
+`BLURT_TEST_PASSWORD` in `.env.local`. They never create the account themselves.
 
 ## In a real room
 

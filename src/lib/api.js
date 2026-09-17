@@ -16,6 +16,7 @@ export async function listQuizzes() {
   const { data, error } = await db
     .from('quizzes')
     .select('id, title, default_seconds, created_at, questions(count)')
+    .is('archived_at', null)
     .order('created_at', { ascending: false })
   if (error) fail(error)
   return (data ?? []).map((quiz) => ({
@@ -56,11 +57,31 @@ export async function currentQuestion(code) {
   if (!row) return null
   return {
     position: row.q_position,
+    kind: row.q_kind,
     text: row.q_text,
     choices: row.q_choices,
     seconds: row.q_seconds,
     correctIndex: row.q_correct_index,
+    // The answer in words, whatever kind of question it was. Null until results.
+    answer: row.q_answer,
+    image: imageUrl(row.q_image),
   }
+}
+
+/** Pictures are public to read — the wall is not signed in. */
+export function imageUrl(path) {
+  return path ? db.storage.from('question-images').getPublicUrl(path).data.publicUrl : null
+}
+
+/** What the room typed, most common first, already filtered for the wall. */
+export async function textDistribution(code) {
+  const { data, error } = await db.rpc('text_distribution', { p_code: code })
+  if (error) fail(error)
+  return (data ?? []).map((row) => ({
+    text: row.answer_text,
+    count: Number(row.answer_count),
+    correct: row.is_correct,
+  }))
 }
 
 /** Empty until results, so nobody can watch the vote come in and follow it. */
@@ -107,6 +128,11 @@ export async function joinGame(code, name) {
   return { playerId: data[0].player_id, playerToken: data[0].player_token }
 }
 
+export async function submitTextAnswer(playerToken, text) {
+  const { error } = await db.rpc('submit_text_answer', { p_player_token: playerToken, p_text: text })
+  if (error) fail(error)
+}
+
 /** Sends a seat token and a choice. Deliberately nothing else. */
 export async function submitAnswer(playerToken, choice) {
   const { error } = await db.rpc('submit_answer', {
@@ -146,6 +172,9 @@ export async function mySeat(playerToken) {
         name: row.player_name,
         answeredCurrent: row.answered_current,
         lockedOut: row.locked_out,
+        // All the phone learns about the question: what to draw.
+        questionKind: row.question_kind,
+        choiceCount: row.choice_count,
       }
     : null
 }
@@ -240,11 +269,15 @@ export async function hostQuestion(hostToken) {
   if (!row) return null
   return {
     position: row.q_position,
+    kind: row.q_kind,
     text: row.q_text,
     choices: row.q_choices,
     seconds: row.q_seconds,
     recallSeconds: row.q_recall_seconds,
     correctIndex: row.q_correct_index,
+    accepted: row.q_accepted ?? [],
+    // What to listen for when a student says it out loud.
+    answer: row.q_kind === 'text' ? (row.q_accepted ?? []).join('  ·  ') : row.q_choices?.[row.q_correct_index],
   }
 }
 

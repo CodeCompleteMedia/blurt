@@ -326,5 +326,72 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
   await db.rpc('close_game', { p_host_token: H9 })
 }
 
+// Phase 4: a teacher can write quizzes, and nobody else can touch them.
+{
+  const planted = await db.from('quizzes').insert({ title: 'planted by a student' }).select('id')
+  check('a student cannot create a quiz', planted.error !== null, planted.error?.message)
+
+  const { data: made, error: makeErr } = await teacher.from('quizzes').insert({ title: 'verify-db scratch' }).select('id').single()
+  check('a teacher can', !makeErr, makeErr?.message)
+  const Z = made.id
+
+  const bad = await teacher.from('questions').insert({
+    quiz_id: Z, position: 0, kind: 'text', text: 'No accepted answers', accepted: [],
+  })
+  check('an unanswerable question is refused by the database', bad.error !== null, bad.error?.message?.slice(0, 50))
+
+  const { data: qs, error: qErr } = await teacher.from('questions').insert([
+    { quiz_id: Z, position: 0, kind: 'truefalse', text: 'T/F', choices: ['True', 'False'], correct_index: 0, seconds: 15 },
+    { quiz_id: Z, position: 1, kind: 'text', text: 'Typed', accepted: ['<ol>', 'ordered list'], seconds: 15 },
+  ]).select('id, position')
+  check('true/false and typed questions save', !qErr && qs?.length === 2, qErr?.message)
+
+  const peek = await db.from('questions').select('id').eq('quiz_id', Z)
+  check('a student cannot read them', peek.error !== null, peek.error?.message)
+
+  const swapped = await teacher.rpc('reorder_questions', { p_quiz_id: Z, p_ids: [...qs].reverse().map((q) => q.id) })
+  check('questions reorder in one statement', swapped.error === null, swapped.error?.message)
+  const theirs = await db.rpc('reorder_questions', { p_quiz_id: Z, p_ids: qs.map((q) => q.id) })
+  check('a student cannot reorder them', theirs.error !== null, theirs.error?.message?.slice(0, 50))
+  await teacher.rpc('reorder_questions', { p_quiz_id: Z, p_ids: qs.map((q) => q.id) })
+
+  // Play it: true/false takes two choices, typed answers forgive the right things.
+  const { data: room } = await teacher.rpc('create_game', { p_quiz_id: Z })
+  const HZ = room[0].host_token
+  await teacher.rpc('update_game_settings', { p_host_token: HZ, p_blurt_enabled: false })
+  const { data: ana } = await db.rpc('join_game', { p_code: room[0].code, p_name: 'Ana' })
+  const { data: ben } = await db.rpc('join_game', { p_code: room[0].code, p_name: 'Ben' })
+  await teacher.rpc('advance_game', { p_host_token: HZ })
+
+  const seatTf = await db.rpc('my_seat', { p_player_token: ana[0].player_token })
+  check('the phone is told to draw two shapes for true/false',
+    seatTf.data?.[0]?.question_kind === 'truefalse' && seatTf.data?.[0]?.choice_count === 2)
+  const third = await db.rpc('submit_answer', { p_player_token: ana[0].player_token, p_choice: 2 })
+  check('a third choice on a two-choice question is refused', third.error !== null, third.error?.message)
+  await db.rpc('submit_answer', { p_player_token: ana[0].player_token, p_choice: 0 })
+  await db.rpc('submit_answer', { p_player_token: ben[0].player_token, p_choice: 1 })
+
+  await teacher.rpc('advance_game', { p_host_token: HZ }) // results -> typed question
+  const tap = await db.rpc('submit_answer', { p_player_token: ana[0].player_token, p_choice: 0 })
+  check('a typed question cannot be answered with a tap', tap.error !== null, tap.error?.message)
+  await db.rpc('submit_text_answer', { p_player_token: ana[0].player_token, p_text: '  OL. ' })
+  await db.rpc('submit_text_answer', { p_player_token: ben[0].player_token, p_text: 'ul' })
+
+  const mineA = await db.rpc('my_result', { p_player_token: ana[0].player_token })
+  const mineB = await db.rpc('my_result', { p_player_token: ben[0].player_token })
+  check('"  OL. " matches "<ol>", "ul" does not',
+    mineA.data?.[0]?.correct === true && mineB.data?.[0]?.correct === false)
+  const wall = await db.rpc('text_distribution', { p_code: room[0].code })
+  check('the wall gets what was typed', wall.data?.length === 2, JSON.stringify(wall.data?.map((r) => r.answer_text)))
+
+  await teacher.rpc('close_game', { p_host_token: HZ })
+  // Hosted once, so it can only be archived: the game still points at it.
+  const hard = await teacher.from('quizzes').delete().eq('id', Z)
+  check('a hosted quiz cannot be hard-deleted out from under its games', hard.error !== null)
+  await teacher.from('quizzes').update({ archived_at: new Date().toISOString() }).eq('id', Z)
+  const again = await teacher.rpc('create_game', { p_quiz_id: Z })
+  check('an archived quiz cannot be hosted', again.error !== null, again.error?.message)
+}
+
 console.log(`\n  ${failures ? `${failures} failed` : 'all checks passed'}  (test room ${code})\n`)
 process.exit(failures ? 1 : 0)

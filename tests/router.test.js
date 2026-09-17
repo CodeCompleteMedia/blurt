@@ -22,6 +22,15 @@ test('trailing slashes and unknown paths fall back to join', () => {
   assert.deepEqual(routeFor(''), { view: 'join' })
 })
 
+test('the editor lists quizzes, or opens one by id', () => {
+  assert.deepEqual(routeFor('/edit'), { view: 'edit', quizId: null })
+  assert.deepEqual(routeFor('/edit/22222222-2222-2222-2222-222222222222'), {
+    view: 'edit',
+    quizId: '22222222-2222-2222-2222-222222222222',
+  })
+  assert.deepEqual(routeFor('/edit/not-a-quiz-id'), { view: 'join' })
+})
+
 test('a malformed code is not mistaken for a room', () => {
   assert.deepEqual(routeFor('/present/way-too-long-to-be-a-code'), { view: 'join' })
 })
