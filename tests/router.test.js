@@ -31,6 +31,15 @@ test('the editor lists quizzes, or opens one by id', () => {
   assert.deepEqual(routeFor('/edit/not-a-quiz-id'), { view: 'join' })
 })
 
+test('reports list games, or open one by id', () => {
+  assert.deepEqual(routeFor('/games'), { view: 'games', gameId: null })
+  assert.deepEqual(routeFor('/games/22222222-2222-2222-2222-222222222222'), {
+    view: 'games',
+    gameId: '22222222-2222-2222-2222-222222222222',
+  })
+  assert.deepEqual(routeFor('/games/nope'), { view: 'join' })
+})
+
 test('a malformed code is not mistaken for a room', () => {
   assert.deepEqual(routeFor('/present/way-too-long-to-be-a-code'), { view: 'join' })
 })

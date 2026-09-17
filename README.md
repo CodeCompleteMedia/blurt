@@ -210,6 +210,30 @@ otherwise the way to protect a streak would be to stop answering. The bonus is
 stored apart from the points, so a phone can say "+961, and +200 for the run"
 rather than show one number nobody can account for.
 
+## After the bell
+
+`/games` lists every room that asked at least one question. Open one and the first
+thing it says, in prose before any table, is which questions went badly — under
+half the room — and whether the class **agreed on a wrong answer** or **scattered**.
+That distinction is the useful one: agreement usually means the question is at
+fault, scattering usually means the topic is.
+
+Questions come back hardest-first. Only the ones the room actually reached are
+reported, so a game stopped at question three does not accuse nobody of knowing
+four and five.
+
+**Export CSV** writes both tables into one file — questions, then students — with
+a byte-order mark so Excel reads an accented name correctly.
+
+**A game keeps the questions it asked.** When a room opens it copies its questions,
+and reads only from the copy. Fix a typo after the lesson and the report still
+shows what the class was asked; reorder or delete a question and nothing shifts
+underneath the answers. A teacher editing mid-lesson no longer changes the question
+under the students' feet either.
+
+Deleting a game deletes it and everything recorded in it — that is the right
+answer for a round someone was upset in, and it is why this one is not an archive.
+
 ## In a real room
 
 Phase 3 was about the things that only go wrong with thirty teenagers.

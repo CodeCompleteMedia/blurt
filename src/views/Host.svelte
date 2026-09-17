@@ -544,6 +544,16 @@
       </div>
     {/if}
 
+    {#if phase === 'final'}
+      <div class="panel done">
+        <p><strong>That's the game.</strong> {roster[0]?.name ?? 'Nobody'} won with {(roster[0]?.score ?? 0).toLocaleString()}.</p>
+        <div class="clock-controls">
+          <a class="ghost" href="/games/{host.gameId}">See what they knew</a>
+          <button class="ghost" onclick={restart}>New room <kbd>R</kbd></button>
+        </div>
+      </div>
+    {/if}
+
     {#if notice}
       <div class="panel warn">
         <p>{notice}</p>
@@ -711,6 +721,10 @@
     background: var(--surface);
     display: grid;
     gap: 10px;
+  }
+
+  .panel.done {
+    border-left: 3px solid #3fbf87;
   }
 
   .panel.warn {

@@ -473,5 +473,58 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
   check('an archived quiz cannot be hosted', again.error !== null, again.error?.message)
 }
 
+// Phase 6: a game keeps what it asked, and the report tells the truth about it.
+{
+  const { data: z } = await teacher.from('quizzes').insert({ title: 'report' }).select('id').single()
+  const { data: qs } = await teacher.from('questions').insert([0, 1].map((i) => ({
+    quiz_id: z.id, position: i, kind: 'choice', text: `Original ${i + 1}`,
+    choices: ['right', 'wrong', 'other'], correct_index: 0, seconds: 15, blurt_enabled: false,
+  }))).select('id, position')
+
+  const { data: room } = await teacher.rpc('create_game', { p_quiz_id: z.id })
+  const HR = room[0].host_token
+  const { data: ana } = await db.rpc('join_game', { p_code: room[0].code, p_name: 'Ana' })
+  const { data: ben } = await db.rpc('join_game', { p_code: room[0].code, p_name: 'Ben' })
+
+  // Everyone gets question 1 wrong, the same way. Then the game is abandoned.
+  await teacher.rpc('advance_game', { p_host_token: HR })
+  await db.rpc('submit_answer', { p_player_token: ana[0].player_token, p_choice: 1 })
+  await db.rpc('submit_answer', { p_player_token: ben[0].player_token, p_choice: 1 })
+
+  // The teacher rewrites the question afterwards, as teachers do.
+  await teacher.from('questions').update({ text: 'REWRITTEN', correct_index: 2 })
+    .eq('id', qs.find((q) => q.position === 0).id)
+
+  const games = await teacher.rpc('my_games')
+  const mine = games.data?.find((g) => g.code === room[0].code)
+  check('a played room appears in the report list', Boolean(mine), mine?.code)
+
+  const r = await teacher.rpc('game_report', { p_game_id: mine.game_id })
+  check('the report shows the question as it was asked, not as it was rewritten',
+    r.data?.[0]?.q_text === 'Original 1', r.data?.[0]?.q_text)
+  check('and the answer key it was played with', r.data?.[0]?.q_answer === 'right', r.data?.[0]?.q_answer)
+  check('only the questions the room reached are reported', r.data?.length === 1, `${r.data?.length} rows`)
+  check('0% correct, and the wrong answer they agreed on',
+    r.data?.[0]?.percent_correct === 0 && r.data?.[0]?.common_wrong === 'wrong'
+      && r.data?.[0]?.common_wrong_count === 2,
+    `${r.data?.[0]?.percent_correct}% · ${r.data?.[0]?.common_wrong} ×${r.data?.[0]?.common_wrong_count}`)
+
+  const pl = await teacher.rpc('game_players', { p_game_id: mine.game_id })
+  check('every student is listed with what they missed',
+    pl.data?.length === 2 && pl.data.every((p) => p.missed?.length === 1))
+
+  const nosy = await db.rpc('game_report', { p_game_id: mine.game_id })
+  check('a student cannot read a report', nosy.error !== null, nosy.error?.message)
+  const nosy2 = await db.rpc('my_games')
+  check('nor list games', nosy2.error !== null, nosy2.error?.message)
+  const nosy3 = await db.rpc('delete_game', { p_game_id: mine.game_id })
+  check('nor delete one', nosy3.error !== null, nosy3.error?.message)
+
+  await teacher.rpc('delete_game', { p_game_id: mine.game_id })
+  const gone = await teacher.rpc('game_report', { p_game_id: mine.game_id })
+  check('a deleted game takes its report with it', gone.error !== null)
+  await teacher.from('quizzes').update({ archived_at: new Date().toISOString() }).eq('id', z.id)
+}
+
 console.log(`\n  ${failures ? `${failures} failed` : 'all checks passed'}  (test room ${code})\n`)
 process.exit(failures ? 1 : 0)

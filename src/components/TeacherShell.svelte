@@ -1,6 +1,6 @@
 <script>
-  // The frame around everything a teacher does. Two places — the room and the
-  // quizzes — and who is signed in.
+  // The frame around everything a teacher does. Three places — the room, the
+  // quizzes, what the last class knew — and who is signed in.
   //
   // The wall and the phone deliberately get none of this. A projector with a menu
   // bar is a projector with something to fiddle with, and a student's screen has
@@ -31,6 +31,7 @@
         {#if room?.code}<span class="live" title="A room is still open">{room.code}</span>{/if}
       </a>
       <a href="/edit" aria-current={current === 'edit' ? 'page' : undefined}>Quizzes</a>
+      <a href="/games" aria-current={current === 'games' ? 'page' : undefined}>Reports</a>
     </div>
 
     <div class="who">

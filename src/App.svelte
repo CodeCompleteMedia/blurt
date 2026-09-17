@@ -4,6 +4,7 @@
   import AuthGate from './components/AuthGate.svelte'
   import TeacherShell from './components/TeacherShell.svelte'
   import Edit from './views/Edit.svelte'
+  import Games from './views/Games.svelte'
   import Host from './views/Host.svelte'
   import Join from './views/Join.svelte'
   import Play from './views/Play.svelte'
@@ -27,6 +28,12 @@
   <AuthGate>
     <TeacherShell current="host">
       <Host />
+    </TeacherShell>
+  </AuthGate>
+{:else if route.view === 'games'}
+  <AuthGate>
+    <TeacherShell current="games">
+      <Games gameId={route.gameId} />
     </TeacherShell>
   </AuthGate>
 {:else if route.view === 'edit'}
