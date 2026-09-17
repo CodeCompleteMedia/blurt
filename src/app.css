@@ -1,6 +1,31 @@
-/* Latin-only files: the content is English, and this keeps the build from
-   emitting subsets nothing will ever request. */
-@import '@fontsource/londrina-solid/latin-400.css';
+/*
+ * The two faces, declared rather than imported.
+ *
+ * Fontsource's own stylesheets pull in every subset it ships — for Rubik that is
+ * arabic, hebrew and two cyrillics, 68KB of files this app will never request but
+ * would still deploy. Pointing at the latin files directly emits exactly what is
+ * used, and gives us the `font-display` to preload against.
+ *
+ * Rubik's variable file covers 300-900 in one download, which is every body
+ * weight here (400-700).
+ */
+@font-face {
+  font-family: 'Londrina Solid';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../node_modules/@fontsource/londrina-solid/files/londrina-solid-latin-400-normal.woff2')
+    format('woff2');
+}
+
+@font-face {
+  font-family: 'Rubik Variable';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url('../node_modules/@fontsource-variable/rubik/files/rubik-latin-wght-normal.woff2')
+    format('woff2-variations');
+}
 
 :root {
   --ground: #10151b;
@@ -21,7 +46,7 @@
      apart. */
   --gutter: clamp(16px, 3vw, 40px);
   --gutter-block: 20px;
-  --body: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --body: 'Rubik Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   font-family: var(--body);
   font-size: 16px;
