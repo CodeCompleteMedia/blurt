@@ -17,6 +17,7 @@
     submitTextAnswer,
     watchGame,
   } from '../lib/api.js'
+  import { slam } from '../lib/motion.js'
   import { ordinal } from '../lib/ordinal.js'
   import { clearSeat, readSeat, writeSeat } from '../lib/session.js'
 
@@ -62,6 +63,17 @@
     Boolean(game?.blurt_lockout) && iHaveTheFloor && phase === 'question_open',
   )
 
+  // Phones stay silent — thirty of them chirping is a different product — but a
+  // buzz in the hand is private. Not available on iOS Safari, which simply
+  // ignores it; nothing depends on it being felt.
+  const buzz = (pattern) => {
+    try {
+      navigator.vibrate?.(pattern)
+    } catch {
+      // Some browsers throw when the page has not been touched yet.
+    }
+  }
+
   async function boot() {
     const saved = readSeat()
     if (!saved?.code) {
@@ -91,6 +103,7 @@
     missed = false
     try {
       const got = await blurt(seat.playerToken)
+      if (got) buzz([60, 40, 60])
       // Someone was a fraction faster. Say so plainly rather than leaving the
       // button looking broken.
       if (!got) missed = true
@@ -107,6 +120,7 @@
     problem = ''
     picked = choice
     answeredIndex = game.question_index
+    buzz(25)
     try {
       await submitAnswer(seat.playerToken, choice)
     } catch (error) {
@@ -217,6 +231,7 @@
     void (async () => {
       try {
         result = await myResult(seat.playerToken)
+        if (p === 'results' && result?.correct) buzz([40, 30, 40])
       } catch {
         result = null
       }
@@ -312,8 +327,15 @@
     <div class="centred verdict" class:right={result?.correct} class:wrong={result && !result.correct}>
       {#if result?.correct}
         <p class="eyebrow">{result.blurted ? 'You blurted it' : 'Correct'}</p>
-        <h1 class="good">+{result.awarded.toLocaleString()}</h1>
-        {#if result.streak > 1}<p class="muted">{result.streak} in a row</p>{/if}
+        <h1 class="good" in:slam>+{result.awarded.toLocaleString()}</h1>
+        {#if result.bonus > 0}
+          <!-- Said separately, so the total is something a student can account for. -->
+          <p class="run" in:slam={{ delay: 260, from: 1.25 }}>
+            +{result.bonus} · {result.streak} in a row
+          </p>
+        {:else if result.streak > 1}
+          <p class="muted">{result.streak} in a row</p>
+        {/if}
       {:else if result?.answered}
         <p class="eyebrow">{result.blurted ? 'Not this time' : 'Wrong answer'}</p>
         <h1 class="bad">+0</h1>
@@ -388,6 +410,13 @@
 
   .good {
     color: #4fd39a;
+  }
+
+  .run {
+    margin: 0;
+    font-family: var(--display);
+    font-size: 26px;
+    color: var(--accent);
   }
 
   .bad {

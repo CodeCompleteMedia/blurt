@@ -491,6 +491,18 @@
 
         <div class="setting">
           <div>
+            <strong>Streak bonus</strong>
+            <span>+100 for each right answer in a row, up to +500. Skipping breaks a run.</span>
+          </div>
+          <button
+            class="toggle" class:on={settings.streakBonus}
+            aria-pressed={settings.streakBonus}
+            onclick={() => applySettings({ streakBonus: !settings.streakBonus })}
+          >{settings.streakBonus ? 'On' : 'Off'}</button>
+        </div>
+
+        <div class="setting">
+          <div>
             <strong>Reveal when everyone's in</strong>
             <span>Straight to the answer, or pause on "All in" first.</span>
           </div>

@@ -5,7 +5,10 @@
   // the correct answer until results, so this view has no secret to leak.
   import AnswerTile from '../components/AnswerTile.svelte'
   import CountdownRing from '../components/CountdownRing.svelte'
+  import confetti from 'canvas-confetti'
+
   import Leaderboard from '../components/Leaderboard.svelte'
+  import Podium from '../components/Podium.svelte'
   import {
     blurter,
     currentQuestion,
@@ -16,7 +19,9 @@
     watchGame,
   } from '../lib/api.js'
   import { shapeFor } from '../lib/answers.js'
-  import { clockBase, ticker } from '../lib/clock.js'
+  import { clockBase, remainingSeconds, ticker } from '../lib/clock.js'
+  import { calm, rise, slam } from '../lib/motion.js'
+  import { isMuted, isUnlocked, setMuted, sounds, unlock } from '../lib/sound.js'
 
   let { code = null } = $props()
 
@@ -32,6 +37,68 @@
   let now = $state(Date.now())
   let questionBase = $state(null)
   let loadedKey = ''
+
+  // ------------------------------------------------------------------ sound ---
+  // Browsers keep a page silent until someone touches it, and the wall is usually
+  // opened by the host screen rather than clicked. So it says when it is silent,
+  // and the first click or keypress anywhere wakes it.
+  let audio = $state({ unlocked: isUnlocked(), muted: isMuted() })
+
+  async function wake() {
+    if (!audio.unlocked) audio.unlocked = await unlock()
+  }
+
+  async function toggleSound(event) {
+    event.stopPropagation()
+    if (!audio.unlocked) {
+      audio.unlocked = await unlock()
+      audio.muted = false
+    } else {
+      audio.muted = !audio.muted
+    }
+    setMuted(audio.muted)
+  }
+
+  // Cues fire on a *change* the wall watched happen. A wall that is refreshed
+  // mid-question must not replay the sting for a claim made a minute ago.
+  let lastPhase = null
+  let lastIndex = null
+  let ceremony = $state(false)
+
+  $effect(() => {
+    const p = game?.phase ?? null
+    const index = game?.question_index
+    if (p == null) return
+    if (lastPhase !== null && (p !== lastPhase || index !== lastIndex)) {
+      if (p === 'recall' || p === 'question_open') sounds.open()
+      else if (p === 'blurt_claimed') sounds.sting()
+      else if (p === 'locked') sounds.time()
+      else if (p === 'results') sounds.reveal()
+      else if (p === 'final') ceremony = true
+    }
+    lastPhase = p
+    lastIndex = index
+  })
+
+  // The last five seconds tick. Not the whole clock: a quiz should not sound like
+  // a bomb from the first second.
+  let lastTick = null
+  $effect(() => {
+    if (!counting || frozenAt || !questionBase) return
+    const left = remainingSeconds(questionBase, limit, now)
+    if (left === lastTick) return
+    lastTick = left
+    if (left >= 1 && left <= 5) sounds.tick(left)
+  })
+
+  function celebrate(place) {
+    if (place > 1) return sounds.step(place)
+    sounds.fanfare()
+    const burst = { disableForReducedMotion: true, particleCount: 90, spread: 70, startVelocity: 55 }
+    confetti({ ...burst, origin: { x: 0.15, y: 0.75 }, angle: 60 })
+    confetti({ ...burst, origin: { x: 0.85, y: 0.75 }, angle: 120 })
+    setTimeout(() => confetti({ ...burst, particleCount: 140, spread: 110, origin: { y: 0.55 } }), calm ? 0 : 350)
+  }
 
   let limit = $derived((question?.seconds ?? 20) * 1000)
   let phase = $derived(game?.phase ?? null)
@@ -111,6 +178,8 @@
   })
 </script>
 
+<svelte:window onclick={wake} onkeydown={wake} />
+
 <main class="stage surface">
   <header>
     <span class="eyebrow">blurt</span>
@@ -118,6 +187,14 @@
       <span class="eyebrow">Question {game.question_index + 1}</span>
     {/if}
     {#if code}<span class="eyebrow code">{code}</span>{/if}
+    <button
+      class="sound"
+      class:off={!audio.unlocked || audio.muted}
+      onclick={toggleSound}
+      aria-label={!audio.unlocked ? 'Turn sound on' : audio.muted ? 'Unmute' : 'Mute'}
+    >
+      {!audio.unlocked ? 'Sound off · click to turn on' : audio.muted ? 'Muted' : 'Sound on'}
+    </button>
   </header>
 
   {#if booting}
@@ -148,7 +225,7 @@
          recognising it, and that is the whole point of the window. -->
     <section class="recall" class:with-image={question.image}>
       {#if question.image}<img class="picture" src={question.image} alt="" />{/if}
-      <h2 class="big-q">{question.text}</h2>
+      <h2 class="big-q" in:rise={{ y: 26 }}>{question.text}</h2>
       <div class="recall-foot">
         <p class="prompt">
           {#if frozenAt}<strong>Paused</strong>{:else}Know it? <strong>Blurt.</strong>{/if}
@@ -159,7 +236,11 @@
   {:else if phase === 'blurt_claimed'}
     <section class="claimed">
       <p class="eyebrow">Has the floor</p>
-      <h1 class="who">{floor?.name ?? '…'}</h1>
+      <!-- Keyed on the name so it lands when the name arrives, not when the empty
+           section does: the claim is known a beat before who made it. -->
+      {#key floor?.name}
+        <h1 class="who" in:slam>{floor?.name ?? '…'}</h1>
+      {/key}
       <p class="sub">Say it out loud</p>
     </section>
   {:else if question && (phase === 'question_open' || phase === 'locked')}
@@ -183,11 +264,15 @@
           {#if question.image}<img class="picture" src={question.image} alt="" />{/if}
           <div class="tiles" class:pair={question.choices?.length === 2}>
             {#each question.choices ?? [] as choice, i}
-              <AnswerTile
-                shape={shapeFor(i)}
-                text={choice}
-                state={phase === 'locked' ? 'dimmed' : 'idle'}
-              />
+              <!-- One after another, so four tiles read as four choices rather
+                   than as a block that appeared. -->
+              <div class="tile-wrap" in:rise={{ delay: i * 80 }}>
+                <AnswerTile
+                  shape={shapeFor(i)}
+                  text={choice}
+                  state={phase === 'locked' ? 'dimmed' : 'idle'}
+                />
+              </div>
             {/each}
           </div>
         </div>
@@ -239,8 +324,11 @@
   {:else if phase === 'final'}
     <section class="final">
       <p class="eyebrow">Final</p>
-      <h1>{players[0]?.name ?? 'Nobody'} wins</h1>
-      <Leaderboard standings={players} limit={5} />
+      {#if players.length}
+        <Podium standings={players} {ceremony} onreveal={celebrate} />
+      {:else}
+        <h1>Nobody played</h1>
+      {/if}
     </section>
   {:else}
     <section class="centred"><p class="muted">…</p></section>
@@ -260,6 +348,28 @@
     flex-wrap: wrap;
     gap: 10px 28px;
     align-items: baseline;
+  }
+
+  .sound {
+    padding: 4px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .sound.off {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* The wrapper exists only to carry the entrance; it must not change how a tile
+     sits in the grid. */
+  .tile-wrap {
+    display: grid;
+    min-width: 0;
   }
 
   header .code {
@@ -547,11 +657,15 @@
 
   .final {
     display: grid;
-    align-content: center;
+    grid-template-rows: auto 1fr;
+    align-content: end;
     gap: 18px;
-    max-width: 760px;
-    margin: 0 auto;
     width: 100%;
+    text-align: center;
+  }
+
+  .final :global(.podium) {
+    align-self: end;
   }
 
   .final h1 {

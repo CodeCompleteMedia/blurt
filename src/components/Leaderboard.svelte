@@ -1,6 +1,11 @@
 <script>
   // Between questions, not during. Five rows is what a class reads in the few
   // seconds it is up; the rest of the room finds itself on its own phone.
+  import { flip } from 'svelte/animate'
+
+  import { ms } from '../lib/motion.js'
+  import RollingNumber from './RollingNumber.svelte'
+
   let { standings = [], limit = 5 } = $props()
 
   let rows = $derived(standings.slice(0, limit))
@@ -8,10 +13,12 @@
 
 <ol class="board">
   {#each rows as player (player.id)}
-    <li>
+    <!-- Rows slide to their new places: an overtake is something you watch
+         happen, not something you work out by re-reading the list. -->
+    <li animate:flip={{ duration: ms(520) }}>
       <span class="rank">{player.rank}</span>
       <span class="name">{player.name}</span>
-      <span class="score">{player.score.toLocaleString()}</span>
+      <span class="score"><RollingNumber value={player.score} /></span>
     </li>
   {/each}
 </ol>

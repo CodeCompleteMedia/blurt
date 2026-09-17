@@ -153,6 +153,7 @@ export async function updateGameSettings(hostToken, settings) {
     p_allow_late_join: settings.allowLateJoin,
     p_blurt_lockout: settings.blurtLockout,
     p_blurt_penalty: settings.blurtPenalty,
+    p_streak_bonus: settings.streakBonus,
   })
   if (error) fail(error)
 }
@@ -253,6 +254,7 @@ export async function myResult(playerToken) {
     answered: row.answered,
     correct: row.correct,
     awarded: row.awarded,
+    bonus: row.bonus ?? 0,
     blurted: row.blurted,
     streak: row.streak,
   }

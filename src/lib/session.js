@@ -52,6 +52,7 @@ export const DEFAULT_SETTINGS = {
   allowLateJoin: true,
   blurtLockout: true,
   blurtPenalty: 0,
+  streakBonus: true,
 }
 
 export const readSettings = () => ({ ...DEFAULT_SETTINGS, ...(read(SETTINGS_KEY) ?? {}) })

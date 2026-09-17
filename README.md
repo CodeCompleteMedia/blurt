@@ -182,6 +182,33 @@ could only ever see their own quizzes, but there is no reason to let them make o
 `verify:db` and `load` act as a teacher, from `BLURT_TEST_EMAIL` and
 `BLURT_TEST_PASSWORD` in `.env.local`. They never create the account themselves.
 
+## How it feels
+
+Motion is Svelte's own — entrances, rows sliding past each other on an overtake,
+scores counting up — so it costs no bytes and needs no library. Under
+`prefers-reduced-motion` everything still *happens*: the podium still reveals
+third, second, first. It just arrives instead of travelling.
+
+**Sound is synthesised, and only the wall makes any.** No audio files means nothing
+to license and nothing for the projector's laptop to fetch over school wifi at the
+moment it matters. Thirty phones chirping is a different product; phones get a buzz
+in the hand instead, where the browser allows it.
+
+Browsers keep a page silent until someone touches it, and the wall is usually
+opened by the host screen rather than clicked. So it starts silent and says so:
+**click the wall once** (or its "Sound off" button) and it wakes. Muting is
+remembered.
+
+Cues fire on a change the wall *watched happen*. Refresh it mid-question and it
+will not replay the sting for a claim made a minute ago, and a wall reloaded after
+the game shows the podium at once — the ceremony is for the room that was there.
+
+**Streaks.** +100 for each right answer in a row from the second, capped at +500,
+as a setting. A run is consecutive *questions*: skipping one breaks it, because
+otherwise the way to protect a streak would be to stop answering. The bonus is
+stored apart from the points, so a phone can say "+961, and +200 for the run"
+rather than show one number nobody can account for.
+
 ## In a real room
 
 Phase 3 was about the things that only go wrong with thirty teenagers.

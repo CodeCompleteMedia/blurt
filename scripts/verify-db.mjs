@@ -326,6 +326,44 @@ check('a forged token gets no result', notMine.error !== null, notMine.error?.me
   await db.rpc('close_game', { p_host_token: H9 })
 }
 
+// A run of right answers earns a bonus, and skipping a question ends the run.
+{
+  const { data: z } = await teacher.from('quizzes').insert({ title: 'streaks' }).select('id').single()
+  await teacher.from('questions').insert([0, 1, 2].map((i) => ({
+    quiz_id: z.id, position: i, kind: 'truefalse', text: `Q${i + 1}`,
+    choices: ['True', 'False'], correct_index: 0, seconds: 15, blurt_enabled: false,
+  })))
+  const { data: r } = await teacher.rpc('create_game', { p_quiz_id: z.id })
+  const HS = r[0].host_token
+  const { data: run } = await db.rpc('join_game', { p_code: r[0].code, p_name: 'Runner' })
+  const { data: skip } = await db.rpc('join_game', { p_code: r[0].code, p_name: 'Skipper' })
+  const results = []
+
+  for (let i = 0; i < 3; i += 1) {
+    await teacher.rpc('advance_game', { p_host_token: HS }) // lobby/results -> question_open
+    await db.rpc('submit_answer', { p_player_token: run[0].player_token, p_choice: 0 })
+    // Skipper answers the first and third, and sits out the second.
+    if (i !== 1) await db.rpc('submit_answer', { p_player_token: skip[0].player_token, p_choice: 0 })
+    const state = await db.from('games').select('phase').eq('code', r[0].code).maybeSingle()
+    if (state.data?.phase === 'question_open') {
+      await teacher.rpc('advance_game', { p_host_token: HS })
+      await teacher.rpc('advance_game', { p_host_token: HS })
+    }
+    results.push({
+      run: (await db.rpc('my_result', { p_player_token: run[0].player_token })).data?.[0],
+      skip: (await db.rpc('my_result', { p_player_token: skip[0].player_token })).data?.[0],
+    })
+  }
+
+  check('a run earns 0, then 100, then 200',
+    results.map((x) => x.run?.bonus).join(',') === '0,100,200', results.map((x) => x.run?.bonus).join(','))
+  check('skipping a question ends the run', results[2].skip?.streak === 1 && results[2].skip?.bonus === 0,
+    `streak ${results[2].skip?.streak}, bonus ${results[2].skip?.bonus}`)
+
+  await teacher.rpc('close_game', { p_host_token: HS })
+  await teacher.from('quizzes').update({ archived_at: new Date().toISOString() }).eq('id', z.id)
+}
+
 // Blurting is per question now, and the game setting is a master switch.
 {
   const { data: z } = await teacher.from('quizzes').insert({ title: 'per-question blurt' }).select('id').single()

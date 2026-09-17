@@ -101,6 +101,18 @@
     opacity: 0.4;
   }
 
+  /* The bars grow out from nothing as the answer goes up. Pure CSS, so the
+     reduced-motion rule in app.css switches it off without anyone asking. */
+  .fill {
+    animation: grow 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  @keyframes grow {
+    from {
+      width: 0;
+    }
+  }
+
   .count {
     margin-left: auto;
     font-family: var(--display);
