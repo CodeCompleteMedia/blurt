@@ -12,11 +12,18 @@
   let top = $derived(standings.slice(0, 3))
   let rest = $derived(standings.slice(3, 6))
 
+  // The count, not the array. The roster arrives again every couple of seconds
+  // from the poll and the broadcast, a brand-new array each time, so an effect
+  // that depended on `top` restarted the ceremony on every refresh — the podium
+  // re-lit itself and the sounds replayed for as long as the wall was left open,
+  // and with three or more players the winner was never reached at all. A number
+  // only wakes the effect when it actually changes.
+  let places = $derived(top.length)
+
   // How far the reveal has got: 0 nothing, then one step per place from the bottom.
   let shown = $state(0)
 
   $effect(() => {
-    const places = top.length
     if (!ceremony) {
       shown = places + 1
       return
@@ -34,7 +41,7 @@
     return () => timers.forEach(clearTimeout)
   })
 
-  const visible = (place) => shown >= top.length - place + 1
+  const visible = (place) => shown >= places - place + 1
 </script>
 
 <div class="podium" style="--places: {top.length}">
@@ -55,7 +62,7 @@
   {/each}
 </div>
 
-{#if rest.length && shown > top.length}
+{#if rest.length && shown > places}
   <ol class="rest" in:rise>
     {#each rest as player (player.id)}
       <li><span class="rank">{player.rank}</span>{player.name}<span class="score">{player.score.toLocaleString()}</span></li>

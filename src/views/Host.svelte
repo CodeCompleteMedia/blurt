@@ -228,6 +228,19 @@
     return projector
   }
 
+  // Ending the celebration without ending the lesson. The podium stays on the
+  // wall — the class still wants to see who won — but the confetti and the
+  // fanfare stop, and nothing is waiting on the teacher to close a tab.
+  async function wrapUp() {
+    if (!host?.hostToken) return
+    try {
+      await closeGame(host.hostToken)
+      game = await fetchGame(host.code)
+    } catch (error) {
+      problem = error.message
+    }
+  }
+
   async function restart() {
     const previous = readHost()
     clearHost()
@@ -269,6 +282,8 @@
     } else if (event.key === ' ' || event.key === 'Enter') {
       event.preventDefault()
       step()
+    } else if (key === 'w' && phase === 'final' && !game?.closed_at) {
+      wrapUp()
     } else if (key === 'r') {
       restart()
     } else if (key === 'p') {
@@ -547,6 +562,11 @@
       <div class="panel done">
         <p><strong>That's the game.</strong> {roster[0]?.name ?? 'Nobody'} won with {(roster[0]?.score ?? 0).toLocaleString()}.</p>
         <div class="clock-controls">
+          {#if game?.closed_at}
+            <span class="wrapped">Wrapped up — the wall is showing the result, quietly.</span>
+          {:else}
+            <button class="ghost" onclick={wrapUp}>Wrap up <kbd>W</kbd></button>
+          {/if}
           <a class="ghost" href="/games/{host.gameId}">See what they knew</a>
           <button class="ghost" onclick={restart}>New room <kbd>R</kbd></button>
         </div>
@@ -906,6 +926,10 @@
     gap: 8px;
     align-items: center;
     font-size: 13px;
+  }
+
+  .wrapped {
+    color: var(--muted);
   }
 
   .ghost.held {

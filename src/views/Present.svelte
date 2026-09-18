@@ -194,12 +194,25 @@
     >
       {!audio.unlocked ? 'Sound off · click to turn on' : audio.muted ? 'Muted' : 'Sound on'}
     </button>
+    {#if phase === 'final' || closed}
+      <!-- The way off the wall, and it appears only once there is nothing left
+           to interrupt. During a game the projector deliberately has nothing on
+           it to fiddle with. -->
+      <a class="leave" href="/">Leave</a>
+    {/if}
   </header>
 
   {#if booting}
     <section class="centred"><p class="muted">Finding the room…</p></section>
   {:else if problem}
     <section class="centred"><p class="muted">{problem}</p></section>
+  {:else if closed && phase === 'final' && players.length}
+    <!-- Wrapped up. The result stays up for the room to look at; the ceremony is
+         over. No reveal, no fanfare, no confetti — a scoreboard, not a party. -->
+    <section class="final">
+      <p class="eyebrow">Final</p>
+      <Podium standings={players} ceremony={false} />
+    </section>
   {:else if closed}
     <!-- The host started a new room. This one has no way to discover the new
          code, so it says so plainly rather than showing a game nobody is in. -->
@@ -362,6 +375,17 @@
   .sound.off {
     border-color: var(--accent);
     color: var(--accent);
+  }
+
+  .leave {
+    padding: 4px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
   }
 
   /* The wrapper exists only to carry the entrance; it must not change how a tile
