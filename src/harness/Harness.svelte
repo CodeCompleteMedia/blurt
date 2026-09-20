@@ -6,7 +6,7 @@
   import CountdownRing from '../components/CountdownRing.svelte'
   import Leaderboard from '../components/Leaderboard.svelte'
   import Podium from '../components/Podium.svelte'
-  import { shapeFor } from '../lib/answers.js'
+  import { choiceFor } from '../lib/answers.js'
 
   // Every pair still in the room-code alphabet that a dot-matrix face could
   // blur together, plus one real-looking code. I/O/Q/0/1 are already gone.
@@ -38,10 +38,17 @@
 
   <h2 class="eyebrow">Answer tiles</h2>
   <div class="tiles">
-    <AnswerTile shape={shapeFor(0)} text="Cascading Style Sheets" count={12} share={0.5} state="correct" />
-    <AnswerTile shape={shapeFor(1)} text="Counter Strike Source" count={6} share={0.25} state="wrong" />
-    <AnswerTile shape={shapeFor(2)} text="Computer Style Syntax" count={4} share={0.17} state="wrong" />
-    <AnswerTile shape={shapeFor(3)} text="Cascading Sheet Styles" count={2} share={0.08} state="wrong" />
+    <AnswerTile choice={choiceFor(0)} text="Cascading Style Sheets" count={12} share={0.5} state="correct" />
+    <AnswerTile choice={choiceFor(1)} text="Counter Strike Source" count={6} share={0.25} state="wrong" />
+    <AnswerTile choice={choiceFor(2)} text="Computer Style Syntax" count={4} share={0.17} state="wrong" />
+    <AnswerTile choice={choiceFor(3)} text="Cascading Sheet Styles" count={2} share={0.08} state="wrong" />
+  </div>
+
+  <h2 class="eyebrow">The phone — no question text, just the letter</h2>
+  <div class="phone">
+    {#each [0, 1, 2, 3] as i}
+      <AnswerTile choice={choiceFor(i)} showText={false} onclick={() => {}} />
+    {/each}
   </div>
 
   <h2 class="eyebrow">Countdown</h2>
@@ -107,6 +114,17 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 14px;
+  }
+
+  /* Roughly an iPhone SE, the floor this has to work at. */
+  .phone {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 320px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
   }
 
   .podium-box {

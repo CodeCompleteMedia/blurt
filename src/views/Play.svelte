@@ -6,7 +6,7 @@
   // worth more than any tapped answer, wrong and this question is over for you.
   import AnswerTile from '../components/AnswerTile.svelte'
   import Leaderboard from '../components/Leaderboard.svelte'
-  import { SHAPES } from '../lib/answers.js'
+  import { CHOICES } from '../lib/answers.js'
   import {
     blurt,
     fetchGame,
@@ -309,16 +309,16 @@
     </form>
   {:else if phase === 'question_open' && !locked}
     <header><span class="eyebrow">Look up at the board</span></header>
-    <!-- As many shapes as the question has choices: two for true or false. -->
+    <!-- As many letters as the question has choices: two for true or false. -->
     <div class="pad" class:pair={(standing?.choiceCount ?? 4) === 2}>
-      {#each SHAPES.slice(0, standing?.choiceCount || 4) as shape, i}
-        <AnswerTile {shape} showText={false} onclick={() => pick(i)} disabled={busy} />
+      {#each CHOICES.slice(0, standing?.choiceCount || 4) as choice, i}
+        <AnswerTile {choice} showText={false} onclick={() => pick(i)} disabled={busy} />
       {/each}
     </div>
   {:else if phase === 'question_open' || phase === 'locked'}
     <div class="centred">
       <h1 class="accent">Locked in</h1>
-      {#if picked != null && picked >= 0}<p class="muted">{SHAPES[picked].label}</p>{/if}
+      {#if picked != null && picked >= 0}<p class="muted">{CHOICES[picked].label}</p>{/if}
     </div>
   {:else if phase === 'results'}
     <div class="centred verdict" class:right={result?.correct} class:wrong={result && !result.correct}>

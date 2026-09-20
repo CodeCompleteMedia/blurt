@@ -18,7 +18,7 @@
     fetchPlayers,
     watchGame,
   } from '../lib/api.js'
-  import { shapeFor } from '../lib/answers.js'
+  import { choiceFor } from '../lib/answers.js'
   import { clockBase, remainingSeconds, ticker } from '../lib/clock.js'
   import { calm, rise, slam } from '../lib/motion.js'
   import { isMuted, isUnlocked, setMuted, sounds, unlock } from '../lib/sound.js'
@@ -287,7 +287,7 @@
                    than as a block that appeared. -->
               <div class="tile-wrap" in:rise={{ delay: i * 80 }}>
                 <AnswerTile
-                  shape={shapeFor(i)}
+                  choice={choiceFor(i)}
                   text={choice}
                   state={phase === 'locked' ? 'dimmed' : 'idle'}
                 />
@@ -325,7 +325,7 @@
         <div class="tiles result-tiles">
           {#each question.choices ?? [] as choice, i}
             <AnswerTile
-              shape={shapeFor(i)}
+              choice={choiceFor(i)}
               text={choice}
               state={i === question.correctIndex ? 'correct' : 'wrong'}
               count={counts[i] ?? 0}

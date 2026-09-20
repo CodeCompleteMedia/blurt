@@ -1,10 +1,9 @@
 <script>
   // One question in the editor. It owns nothing: every edit is reported upward
   // through `onchange`, and the parent decides when that becomes a save.
-  import { SHAPES } from '../lib/answers.js'
+  import { CHOICES } from '../lib/answers.js'
   import { KINDS, problemWith } from '../lib/question.js'
   import { imageUrl } from '../lib/quizzes.js'
-  import Shape from './Shape.svelte'
 
   let {
     question,
@@ -68,7 +67,7 @@
   {#if question.kind === 'choice'}
     <div class="choices">
       {#each question.choices as choice, i}
-        <div class="choice" style="--tile: {SHAPES[i].color}; --rim: {SHAPES[i].rim}">
+        <div class="choice" style="--tile: {CHOICES[i].color}; --rim: {CHOICES[i].rim}">
           <input
             type="radio"
             name="correct-{question.key}"
@@ -77,7 +76,7 @@
             onchange={() => set({ correctIndex: i })}
             aria-label="Choice {i + 1} is correct"
           />
-          <span class="mark"><Shape shape={SHAPES[i].key} size={16} color="var(--on-tile)" /></span>
+          <span class="mark">{CHOICES[i].key}</span>
           <input
             type="text"
             id="t-{question.key}-{i}"
@@ -272,6 +271,8 @@
     accent-color: var(--rim);
   }
 
+  /* The letter on its tile colour, so the editor row looks like the answer the
+     room will see. White on every fill clears 5:1 — see src/lib/answers.js. */
   .mark {
     display: grid;
     place-items: center;
@@ -280,6 +281,10 @@
     border-radius: var(--radius-sm);
     background: var(--tile);
     box-shadow: inset 0 0 0 1px var(--rim);
+    color: var(--on-tile);
+    font-family: var(--display);
+    font-size: 14px;
+    line-height: 1;
   }
 
   .tf {

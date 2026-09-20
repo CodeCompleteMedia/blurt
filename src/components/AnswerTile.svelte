@@ -1,6 +1,4 @@
 <script>
-  import Shape from './Shape.svelte'
-
   // One answer. On the projector it carries the text; on a phone it deliberately
   // does not, so a glance at a neighbour's screen gives nothing away.
   //
@@ -9,7 +7,7 @@
   // Reading the answer off the tile you were just looking at beats reading it off
   // a separate chart.
   let {
-    shape,
+    choice,
     text: choiceText = '',
     showText = true,
     state = 'idle', // idle | correct | wrong | dimmed
@@ -21,16 +19,16 @@
 </script>
 
 {#if onclick}
-  <button class="tile {state}" style="--tile: {shape.color}; --rim: {shape.rim}" {disabled} {onclick} aria-label={shape.label}>
-    <Shape shape={shape.key} size={showText ? 34 : 56} color="var(--on-tile)" />
+  <button class="tile {state}" class:solo={!showText} style="--tile: {choice.color}; --rim: {choice.rim}" {disabled} {onclick} aria-label={choice.label}>
+    <span class="letter" class:big={!showText}>{choice.key}</span>
     {#if showText}<span class="text">{choiceText}</span>{/if}
   </button>
 {:else}
-  <div class="tile {state}" style="--tile: {shape.color}; --rim: {shape.rim}">
+  <div class="tile {state}" class:solo={!showText && count === null} style="--tile: {choice.color}; --rim: {choice.rim}">
     {#if count !== null}
       <div class="fill" style="width: {Math.max(share * 100, 2)}%"></div>
     {/if}
-    <Shape shape={shape.key} size={showText ? 34 : 56} color="var(--on-tile)" />
+    <span class="letter" class:big={!showText}>{choice.key}</span>
     {#if showText}<span class="text">{choiceText}</span>{/if}
     {#if count !== null}
       <span class="count">{count}</span>
@@ -62,12 +60,40 @@
       box-shadow 0.2s ease;
   }
 
-  .tile > :global(svg),
+  .letter,
   .text,
   .count,
   .tick {
     position: relative;
     z-index: 1;
+  }
+
+  /* The letter is the answer's name — on a phone it is the only thing on the
+     tile, so it is sized to be readable at arm's length and unmistakable from
+     the back of the room when the wall shows it. A fixed min-width keeps the
+     answer text starting at the same x on all four. */
+  .letter {
+    flex: none;
+    /* A fixed footprint, so the answer text starts at the same x on all four
+       and the tile does not grow a line just because the letter is wide. The
+       shape this replaced was a flat 34px even on a projector; the letter is
+       the answer's name now, so it scales with the wall instead. */
+    width: clamp(28px, 2.6vw, 48px);
+    font-family: var(--display);
+    font-size: clamp(20px, 2vw, 38px);
+    line-height: 1;
+    text-align: center;
+  }
+
+  .letter.big {
+    width: auto;
+    font-size: clamp(44px, 9vw, 64px);
+  }
+
+  /* Nothing on the tile but the letter — centre it rather than leaving it
+     hanging off the left where the answer text would have started. */
+  .tile.solo {
+    justify-content: center;
   }
 
   .text {

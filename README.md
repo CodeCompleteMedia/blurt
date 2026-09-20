@@ -18,7 +18,7 @@ npm run check:migrations           # rebuild every migration from an empty Postg
 | Path             | Who         | What it shows                                                     |
 | ---------------- | ----------- | ----------------------------------------------------------------- |
 | `/`              | student     | Room code, then name                                               |
-| `/play`          | student     | One blurt button, or four shapes — never the question text         |
+| `/play`          | student     | One blurt button, or A/B/C/D — never the question text             |
 | `/present/CODE`  | the wall    | Question, countdown, distribution, leaderboard. No controls        |
 | `/host`          | the teacher | Live roster, the answer key, and every control. Signed in          |
 | `/edit`          | the teacher | Write, reorder, import and illustrate quizzes. Signed in           |
