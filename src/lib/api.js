@@ -380,3 +380,97 @@ export function watchGame({ code, onGame, onPlayers, intervalMs = 2500 }) {
     },
   }
 }
+
+// ----------------------------------------------------------------- displays --
+// A display is a screen a teacher pairs once and then sends rooms to, for the
+// case /present/CODE does not cover: a projector driven by a machine that is not
+// the one running /host. It holds a uuid and learns a room code; nothing else.
+
+export async function listWalls() {
+  const { data, error } = await db.rpc('my_walls')
+  if (error) fail(error)
+  return (data ?? []).map((row) => ({
+    id: row.wall_id,
+    label: row.label,
+    code: row.code,
+    pointedAt: row.pointed_at,
+  }))
+}
+
+export async function createWall(label) {
+  const { data, error } = await db.rpc('create_wall', { p_label: label })
+  if (error) fail(error)
+  return { id: data?.[0]?.wall_id, label: data?.[0]?.label }
+}
+
+export async function renameWall(wallId, label) {
+  const { error } = await db.rpc('rename_wall', { p_wall_id: wallId, p_label: label })
+  if (error) fail(error)
+}
+
+export async function deleteWall(wallId) {
+  const { error } = await db.rpc('delete_wall', { p_wall_id: wallId })
+  if (error) fail(error)
+}
+
+export async function pointWall(wallId, hostToken) {
+  const { error } = await db.rpc('point_wall', { p_wall_id: wallId, p_host_token: hostToken })
+  if (error) fail(error)
+}
+
+/** What the display itself asks, holding nothing but its own id. */
+export async function wallRoom(wallId) {
+  const { data, error } = await db.rpc('wall_room', { p_wall_id: wallId })
+  if (error) fail(error)
+  const row = data?.[0]
+  return row ? { label: row.label, code: row.code, pointedAt: row.pointed_at } : null
+}
+
+/**
+ * Watch a display for the room it is pointed at.
+ *
+ * Broadcast for the instant case, a poll underneath for the reliable one — a
+ * projector whose websocket has idled out on school wifi must still find the
+ * room, and this is the screen least likely to have anyone standing at it.
+ */
+export function watchWall({ wallId, onRoom, intervalMs = 4000 }) {
+  let stopped = false
+  let seen = false
+
+  const refresh = async () => {
+    try {
+      const room = await wallRoom(wallId)
+      // null means the id is not a display at all, which the screen has to be
+      // able to say — otherwise a mistyped URL is indistinguishable from a
+      // display nobody has pointed anywhere yet.
+      if (stopped) return
+      seen = true
+      onRoom?.(room)
+    } catch {
+      // A dropped read is not worth blanking a projector over — but the very
+      // first one has to resolve, or a bad link sits on "…" until somebody
+      // walks over and reloads it.
+      if (!stopped && !seen) onRoom?.(null)
+    }
+  }
+
+  let channel = null
+  try {
+    channel = freshChannel(`wall:${wallId}`)
+      .on('broadcast', { event: 'pointed' }, refresh)
+      .subscribe()
+  } catch {
+    channel = null
+  }
+
+  refresh()
+  const timer = setInterval(refresh, intervalMs)
+
+  return {
+    stop() {
+      stopped = true
+      if (channel) db.removeChannel(channel)
+      clearInterval(timer)
+    },
+  }
+}

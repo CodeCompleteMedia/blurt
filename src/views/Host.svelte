@@ -9,6 +9,10 @@
     blurter,
     closeGame,
     createGame,
+    createWall,
+    deleteWall,
+    listWalls,
+    pointWall,
     fetchGame,
     copySampleQuiz,
     listQuizzes,
@@ -223,9 +227,115 @@
     if (id && name.length >= 2) await run(() => renamePlayer(host.hostToken, id, name))
   }
 
-  function showProjector() {
-    projector = window.open(presentUrl, 'blurt-present')
+  // Opening the wall where the wall actually is.
+  //
+  // A plain window.open lands the projector on top of the host screen, and the
+  // teacher drags it across and fullscreens it by hand, every lesson. The Window
+  // Management API knows where the other screen is; Chrome asks once for the
+  // permission and remembers. Everything about this is best-effort — Safari and
+  // Firefox have no such API, a teacher may refuse the prompt, and there may be
+  // only one screen — so every path falls back to the window that always worked.
+  async function showProjector() {
+    const plain = () => window.open(presentUrl, 'blurt-present')
+
+    try {
+      if (typeof window.getScreenDetails !== 'function' || !screen.isExtended) {
+        projector = plain()
+        return projector
+      }
+
+      const details = await window.getScreenDetails()
+      // The projector is the one this window is not on. Prefer an external panel
+      // if the machine can tell us which is which.
+      const elsewhere = details.screens.filter((s) => s !== details.currentScreen)
+      const target = elsewhere.find((s) => !s.isInternal) ?? elsewhere[0]
+      if (!target) {
+        projector = plain()
+        return projector
+      }
+
+      projector = window.open(
+        presentUrl,
+        'blurt-present',
+        `left=${target.availLeft},top=${target.availTop},` +
+          `width=${target.availWidth},height=${target.availHeight}`,
+      )
+    } catch {
+      // Prompt refused, or no permission. Not worth a word on screen: the wall
+      // still opens, it just opens here.
+      projector = plain()
+    }
     return projector
+  }
+
+  // ------------------------------------------------------------- displays ---
+  // The other way to get a room onto a screen. `Open projector` is for a second
+  // monitor on this machine; a display is for a projector driven by a machine
+  // that is not this one, where nobody wants to type a five-letter code at the
+  // front of a class. Paired once, pointed thereafter.
+  let showDisplays = $state(false)
+  let walls = $state([])
+  let wallsLoaded = false
+  let newWall = $state('')
+  let sent = $state(null)
+
+  async function loadWalls() {
+    try {
+      walls = await listWalls()
+      wallsLoaded = true
+    } catch (error) {
+      problem = error.message
+    }
+  }
+
+  async function toggleDisplays() {
+    showDisplays = !showDisplays
+    if (showDisplays && !wallsLoaded) await loadWalls()
+  }
+
+  async function addWall() {
+    const label = newWall.trim()
+    if (!label) return
+    newWall = ''
+    try {
+      await createWall(label)
+      await loadWalls()
+    } catch (error) {
+      problem = error.message
+    }
+  }
+
+  async function sendTo(wall) {
+    if (!host?.hostToken) return
+    try {
+      await pointWall(wall.id, host.hostToken)
+      sent = wall.id
+      setTimeout(() => sent === wall.id && (sent = null), 2500)
+      await loadWalls()
+    } catch (error) {
+      problem = error.message
+    }
+  }
+
+  async function removeWall(wall) {
+    try {
+      await deleteWall(wall.id)
+      await loadWalls()
+    } catch (error) {
+      problem = error.message
+    }
+  }
+
+  const wallUrl = (wall) => `${window.location.origin}/wall/${wall.id}`
+
+  async function copyWall(wall) {
+    try {
+      await navigator.clipboard.writeText(wallUrl(wall))
+      sent = `copied:${wall.id}`
+      setTimeout(() => (sent = null), 2000)
+    } catch {
+      // Clipboard refused; the link is on screen to be read either way.
+    }
   }
 
   // Ending the celebration without ending the lesson. The podium stays on the
@@ -444,7 +554,54 @@
       <button class="ghost" onclick={showProjector}>
         Open projector ↗
       </button>
+      <button class="ghost" onclick={toggleDisplays} aria-expanded={showDisplays}>
+        Displays
+      </button>
     </header>
+
+    {#if showDisplays}
+      <div class="panel displays">
+        <p class="lede">
+          A display is a screen you pair once — a classroom PC, a smart TV, anything
+          with a browser that is not this machine. Open its link there, and from then
+          on send rooms to it from here.
+        </p>
+
+        {#if walls.length}
+          <ul class="walls">
+            {#each walls as wall (wall.id)}
+              <li>
+                <div class="what">
+                  <strong>{wall.label}</strong>
+                  <span class="url">{wallUrl(wall)}</span>
+                  <span class="where">
+                    {#if wall.code}Showing room {wall.code}{:else}Not pointed at a room yet{/if}
+                  </span>
+                </div>
+                <button class="ghost" onclick={() => copyWall(wall)}>
+                  {sent === `copied:${wall.id}` ? 'Copied' : 'Copy link'}
+                </button>
+                <button class="ghost send" disabled={!host?.code} onclick={() => sendTo(wall)}>
+                  {sent === wall.id ? 'Sent ✓' : `Send ${host?.code ?? ''}`}
+                </button>
+                <button class="link" onclick={() => removeWall(wall)}>Remove</button>
+              </li>
+            {/each}
+          </ul>
+        {:else if wallsLoaded}
+          <p class="muted">No displays yet.</p>
+        {/if}
+
+        <form class="add" onsubmit={(e) => { e.preventDefault(); addWall() }}>
+          <input
+            bind:value={newWall}
+            placeholder="Name a display — “Front projector”, “Lab TV”"
+            maxlength="40"
+          />
+          <button class="ghost" type="submit" disabled={!newWall.trim()}>Add a display</button>
+        </form>
+      </div>
+    {/if}
 
     {#if showSettings}
       <div class="panel settings">
@@ -926,6 +1083,89 @@
 
   a.ghost {
     text-decoration: none;
+  }
+
+  /* Displays */
+  .displays {
+    display: grid;
+    gap: 14px;
+  }
+
+  .lede {
+    margin: 0;
+    max-width: 68ch;
+    color: var(--ink-muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .walls {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .walls li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    align-items: center;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--stage-raised);
+  }
+
+  .what {
+    flex: 1;
+    display: grid;
+    gap: 2px;
+    min-width: 200px;
+  }
+
+  /* The link is meant to be read off the screen and typed into another machine,
+     so it is monospaced and selectable rather than pretty. */
+  .url {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12px;
+    color: var(--neon-cyan);
+    overflow-wrap: anywhere;
+    user-select: all;
+  }
+
+  .where {
+    font-size: 12px;
+    color: var(--ink-muted);
+  }
+
+  .ghost.send:not(:disabled) {
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+  }
+
+  .add {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .add input {
+    flex: 1;
+    min-width: 200px;
+    padding: 9px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-md);
+    background: var(--stage);
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+  }
+
+  .add input:focus {
+    border-color: var(--neon-cyan);
+    outline: none;
   }
 
   .clock-controls {

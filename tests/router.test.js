@@ -43,3 +43,18 @@ test('reports list games, or open one by id', () => {
 test('a malformed code is not mistaken for a room', () => {
   assert.deepEqual(routeFor('/present/way-too-long-to-be-a-code'), { view: 'join' })
 })
+
+test('a display is a uuid, and it is not a room code', () => {
+  const id = '3f1a2b4c-5d6e-4f70-8a91-b2c3d4e5f607'
+  assert.deepEqual(routeFor(`/wall/${id}`), { view: 'wall', wallId: id })
+  // Case folded, the way /present folds codes upward.
+  assert.deepEqual(routeFor(`/wall/${id.toUpperCase()}`), { view: 'wall', wallId: id })
+  // Bare, for a display that has not been paired yet.
+  assert.deepEqual(routeFor('/wall'), { view: 'wall', wallId: null })
+  // A room code is not a display id, and must not be mistaken for one.
+  assert.equal(routeFor('/wall/PT85U').view, 'join')
+})
+
+test('a room code still routes to the wall it always did', () => {
+  assert.deepEqual(routeFor('/present/PT85U'), { view: 'present', code: 'PT85U' })
+})

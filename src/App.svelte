@@ -9,6 +9,7 @@
   import Join from './views/Join.svelte'
   import Play from './views/Play.svelte'
   import Present from './views/Present.svelte'
+  import Wall from './views/Wall.svelte'
 
   const route = routeFor()
 </script>
@@ -44,6 +45,8 @@
   </AuthGate>
 {:else if route.view === 'present'}
   <Present code={route.code} />
+{:else if route.view === 'wall'}
+  <Wall wallId={route.wallId} />
 {:else if route.view === 'play'}
   <Play />
 {:else}

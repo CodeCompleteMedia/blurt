@@ -1,4 +1,4 @@
-// Six surfaces. Three are the teacher's: the room, the quiz editor, and the
+// Seven surfaces. Three are the teacher's: the room, the quiz editor, and the
 // reports at /games. The app never navigates after load — a phone stays on /play and
 // a wall stays on /present all lesson — so there is no router library here.
 //
@@ -19,6 +19,11 @@ export function routeFor(pathname = window.location.pathname) {
 
   const edit = path.match(/^\/edit(?:\/([0-9a-f-]{36}))?$/i)
   if (edit) return { view: 'edit', quizId: edit[1]?.toLowerCase() ?? null }
+
+  // A display is a uuid, not a room code: it is a screen a teacher paired once,
+  // and the room it shows is pushed to it rather than typed.
+  const wall = path.match(/^\/wall(?:\/([0-9a-f-]{36}))?$/i)
+  if (wall) return { view: 'wall', wallId: wall[1]?.toLowerCase() ?? null }
 
   const present = path.match(new RegExp(`^/present(?:/(${CODE}))?$`))
   if (present) return { view: 'present', code: present[1]?.toUpperCase() ?? null }

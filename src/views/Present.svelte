@@ -50,10 +50,43 @@
   // the master switch over both, so one click still silences the room.
   let allowed = $derived(audio.unlocked && !audio.muted)
 
-  async function wake() {
+  // The projector needs a click before it may make noise, so that same click is
+  // the one gesture a browser will also accept for fullscreen. One click on the
+  // wall and it is running: sound on, browser chrome gone. Only the first one —
+  // a teacher who presses Escape should not be dragged back in by a stray click.
+  let filled = $state(false)
+  let triedFull = false
+
+  async function goFullscreen() {
+    try {
+      await document.documentElement.requestFullscreen()
+    } catch {
+      // Refused, or unsupported. The wall is perfectly usable in a window.
+    }
+  }
+
+  async function wake(event) {
     if (!audio.unlocked) audio.unlocked = await unlock()
     syncMusic(audio.unlocked && !audio.muted)
+    if (!triedFull && event?.isTrusted) {
+      triedFull = true
+      await goFullscreen()
+    }
   }
+
+  async function toggleFullscreen(event) {
+    event.stopPropagation()
+    triedFull = true
+    if (document.fullscreenElement) await document.exitFullscreen().catch(() => {})
+    else await goFullscreen()
+  }
+
+  $effect(() => {
+    const sync = () => (filled = Boolean(document.fullscreenElement))
+    sync()
+    document.addEventListener('fullscreenchange', sync)
+    return () => document.removeEventListener('fullscreenchange', sync)
+  })
 
   async function toggleSound(event) {
     event.stopPropagation()
@@ -259,7 +292,7 @@
       onclick={toggleSound}
       aria-label={!audio.unlocked ? 'Turn sound on' : audio.muted ? 'Unmute' : 'Mute'}
     >
-      {!audio.unlocked ? 'Sound off · click to turn on' : audio.muted ? 'Muted' : 'Sound on'}
+      {!audio.unlocked ? 'Click the wall to start' : audio.muted ? 'Muted' : 'Sound on'}
     </button>
     <button
       class="sound"
@@ -268,6 +301,14 @@
       aria-label={audio.music ? 'Turn the music off' : 'Turn the music on'}
     >
       {audio.music ? 'Music on' : 'Music off'}
+    </button>
+    <button
+      class="sound"
+      class:off={!filled}
+      onclick={toggleFullscreen}
+      aria-label={filled ? 'Leave fullscreen' : 'Fill the screen'}
+    >
+      {filled ? 'Fullscreen' : 'Fill the screen'}
     </button>
     {#if phase === 'final' || closed}
       <!-- The way off the wall, and it appears only once there is nothing left
