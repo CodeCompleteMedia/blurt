@@ -58,6 +58,57 @@ begin
   raise notice 'ok  answers, secrets, questions, quizzes and the snapshot are all refused';
 end $$;
 
+-- No table in the schema may be addressable by the anon key at all.
+--
+-- anon is the role the key in the browser bundle resolves to, so this is the
+-- one that has to be empty. `authenticated` is deliberately different: a teacher
+-- has a real account, and RLS scopes `quizzes` and `questions` to rows they own.
+-- Students never sign in, so they never reach that role.
+--
+-- Zero rows is not the same as no grant. RLS with no policies denies everyone,
+-- so a table left granted reads as safe from outside right up until somebody
+-- adds a convenience policy to it. `walls` shipped in 0029 without its revoke
+-- and nothing caught it: the check looked for rows rather than for the grant,
+-- and the throwaway database did not model Supabase's habit of handing new
+-- tables to anon. Both are fixed; this is the half that bites.
+do $$
+declare open_tables text := '';
+begin
+  select string_agg(format(e'\n       %s', c.relname), '' order by c.relname)
+    into open_tables
+  from pg_class c
+  join pg_namespace ns on ns.oid = c.relnamespace
+  where ns.nspname = 'public' and c.relkind = 'r'
+    and has_table_privilege('anon', c.oid, 'select');
+
+  if open_tables is not null then
+    raise exception 'table(s) still granted SELECT to anon — only RLS is holding them shut:%',
+      open_tables;
+  end if;
+
+  raise notice 'ok  no table in the schema is addressable by the anon key';
+end $$;
+
+-- Every table `authenticated` can read must have policies to scope it, or the
+-- grant is doing nothing but waiting for someone to notice it.
+do $$
+declare unscoped text := '';
+begin
+  select string_agg(format(e'\n       %s', c.relname), '' order by c.relname)
+    into unscoped
+  from pg_class c
+  join pg_namespace ns on ns.oid = c.relnamespace
+  where ns.nspname = 'public' and c.relkind = 'r'
+    and has_table_privilege('authenticated', c.oid, 'select')
+    and not exists (select 1 from pg_policy pol where pol.polrelid = c.oid);
+
+  if unscoped <> '' and unscoped is not null then
+    raise exception 'table(s) readable by a signed-in user with no policy to scope them:%', unscoped;
+  end if;
+
+  raise notice 'ok  every table a signed-in teacher can read is scoped by policy';
+end $$;
+
 -- No credential may live on a row the anon key can read. This is the reason
 -- secrets were split into their own tables in the first place, and the check
 -- that says the split still holds.

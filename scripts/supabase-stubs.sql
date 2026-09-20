@@ -3,6 +3,18 @@
 
 create role anon nologin;
 create role authenticated nologin;
+
+-- Supabase hands every NEW table in `public` to anon and authenticated by
+-- default. Without this line the throwaway database is safer than production,
+-- which is the worst way for a test database to differ: a table added without
+-- its `revoke all` passes locally and ships open. That is exactly what happened
+-- to `walls` in 0029, caught only by poking the live REST API by hand.
+--
+-- Functions are not listed here because Postgres already grants EXECUTE to
+-- PUBLIC on every new function by itself — see gotcha 1 in the notes, and
+-- scripts/sql/overloads.sql.
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to anon, authenticated;
 create publication supabase_realtime;
 
 -- auth: who is calling. Supabase reads the JWT it verified into this setting, so
