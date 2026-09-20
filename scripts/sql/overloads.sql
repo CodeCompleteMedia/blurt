@@ -36,6 +36,31 @@ begin
   raise notice 'ok  every public function has exactly one signature';
 end $$;
 
+-- No function may be left on Postgres's built-in default.
+--
+-- 0016 tried to make "closed" the default with ALTER DEFAULT PRIVILEGES. That
+-- statement does nothing — on PG16 it registers no pg_default_acl row and new
+-- functions still carry EXECUTE to PUBLIC — so the only thing keeping internal
+-- helpers closed is that each one says so. This asserts every function has been
+-- decided about, one way or the other. A NULL proacl means nobody decided.
+do $$
+declare undecided text;
+begin
+  select string_agg(format(e'\n       %s(%s)', p.proname,
+                           pg_get_function_identity_arguments(p.oid)), '')
+    into undecided
+  from pg_proc p
+  join pg_namespace ns on ns.oid = p.pronamespace
+  where ns.nspname = 'public' and p.proacl is null;
+
+  if undecided is not null then
+    raise exception 'function(s) left on the built-in default, so PUBLIC can execute them — grant or revoke explicitly:%',
+      undecided;
+  end if;
+
+  raise notice 'ok  every function is explicitly granted or explicitly revoked';
+end $$;
+
 -- And every function meant to be called from the browser needs its grant said
 -- out loud, because the schema's default privileges are closed. A function with
 -- no grant is internal; the thing to catch is the reverse of the 2026-09-16 bug,

@@ -10,8 +10,17 @@ create publication supabase_realtime;
 --   select set_config('request.jwt.claims', '{"sub":"<uuid>"}', false);
 create schema auth;
 create table auth.users (id uuid primary key default gen_random_uuid(), email text);
-create function auth.uid() returns uuid language sql stable as $$
-  select nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'sub', '')::uuid
+-- Signed out is null, not an error. The old one cast '' to jsonb and threw, which
+-- made "nobody is signed in" indistinguishable from "the function is broken" and
+-- quietly turned some checks into tests of the wrong failure.
+create function auth.uid() returns uuid language plpgsql stable as $$
+declare claims text := current_setting('request.jwt.claims', true);
+begin
+  if claims is null or btrim(claims) = '' then return null; end if;
+  return nullif(claims::jsonb ->> 'sub', '')::uuid;
+exception when others then
+  return null;
+end;
 $$;
 grant usage on schema auth to anon, authenticated;
 
