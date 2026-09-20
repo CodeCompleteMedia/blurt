@@ -19,6 +19,7 @@
     watchGame,
   } from '../lib/api.js'
   import { choiceFor } from '../lib/answers.js'
+  import { arrivals } from '../lib/arrivals.js'
   import { clockBase, remainingSeconds, ticker } from '../lib/clock.js'
   import { calm, rise, slam } from '../lib/motion.js'
   import { isMuted, isUnlocked, setMuted, sounds, unlock } from '../lib/sound.js'
@@ -78,6 +79,34 @@
     }
     lastPhase = p
     lastIndex = index
+  })
+
+  // A phone arriving.
+  //
+  // Same rule as the phase cues: only for an arrival this wall watched happen.
+  // `known` starts null, so the first roster the wall receives sets the baseline
+  // silently — otherwise refreshing the projector in a full lobby would fire
+  // thirty chirps at a room that has been sitting there for five minutes.
+  //
+  // Identity, not count: a student removed and another joining between two polls
+  // leaves the length unchanged but is still an arrival.
+  let known = null
+  let joins = 0
+
+  $effect(() => {
+    const seen = arrivals(known, players)
+    known = seen.known
+    joins += seen.arrived
+    if (seen.baseline || !seen.arrived) return
+
+    // Never over a live question. A latecomer is worth knowing about, but not at
+    // the cost of chirping through the eight seconds someone is recalling in.
+    if (phase === 'recall' || phase === 'question_open') return
+
+    // Staggered, so a clump reads as a little run rather than one thick noise.
+    // `joins - seen.arrived` is where the ladder stood before they walked in.
+    const from = joins - seen.arrived
+    for (let i = 0; i < seen.chirps; i += 1) sounds.join(from + i, i * 0.08)
   })
 
   // The last five seconds tick. Not the whole clock: a quiz should not sound like

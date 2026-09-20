@@ -7,6 +7,7 @@
   import Leaderboard from '../components/Leaderboard.svelte'
   import Podium from '../components/Podium.svelte'
   import { choiceFor } from '../lib/answers.js'
+  import { isMuted, isUnlocked, setMuted, sounds, unlock } from '../lib/sound.js'
 
   // Every pair still in the room-code alphabet that a dot-matrix face could
   // blur together, plus one real-looking code. I/O/Q/0/1 are already gone.
@@ -21,12 +22,52 @@
   ]
 
   const started = Date.now() - 12000
+
+  // The sound bench. Browsers keep a page silent until it has been clicked, the
+  // same reason the wall shows a speaker to wake it.
+  let live = $state(isUnlocked())
+  let muted = $state(isMuted())
+  let step = $state(0)
+
+  async function wake() {
+    live = await unlock()
+    if (live && muted) { muted = false; setMuted(false) }
+  }
+
+  // What the lobby actually does with a clump: cap the chirps, keep the ladder.
+  function rush() {
+    for (let i = 0; i < 3; i += 1) sounds.join(step + i, i * 0.08)
+    step += 8
+  }
+
+  function countdown() {
+    for (let n = 5; n >= 1; n -= 1) setTimeout(() => sounds.tick(n), (5 - n) * 1000)
+  }
 </script>
 
 <main>
   <h2 class="eyebrow">Wordmark</h2>
   <div class="row">
     <span class="wordmark big">blurt!</span>
+  </div>
+
+  <h2 class="eyebrow">Sound — nobody has ever actually heard these</h2>
+  <div class="sounds">
+    {#if !live}
+      <button class="wake" onclick={wake}>Click once to let the page make noise</button>
+    {:else}
+      <button onclick={() => sounds.join(step++)}>join (ladder step {step % 6})</button>
+      <button onclick={rush}>a class arriving — 8 phones</button>
+      <button onclick={() => sounds.open()}>open</button>
+      <button onclick={() => sounds.sting()}>blurt claimed</button>
+      <button onclick={() => sounds.time()}>time up</button>
+      <button onclick={() => sounds.reveal()}>reveal</button>
+      <button onclick={() => sounds.step(3)}>podium 3rd</button>
+      <button onclick={() => sounds.step(2)}>podium 2nd</button>
+      <button onclick={() => sounds.fanfare()}>fanfare</button>
+      <button onclick={countdown}>last 5 seconds</button>
+      <button onclick={() => { muted = !muted; setMuted(muted) }}>{muted ? 'unmute' : 'mute'}</button>
+    {/if}
   </div>
 
   <h2 class="eyebrow">Room code — every confusable pair left in the alphabet</h2>
@@ -90,6 +131,30 @@
   .big {
     font-size: 72px;
     text-transform: uppercase;
+  }
+
+  .sounds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .sounds button {
+    padding: 8px 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-pill);
+    background: var(--stage-raised);
+    color: var(--ink);
+    font-size: 13px;
+  }
+
+  .sounds button:hover {
+    border-color: var(--neon-cyan);
+  }
+
+  .sounds .wake {
+    border-color: var(--neon-pink);
+    color: var(--neon-pink);
   }
 
   .codes {

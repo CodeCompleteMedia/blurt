@@ -62,11 +62,28 @@ function note(freq, at, length, { type = 'sine', gain = 0.16, slideTo = null } =
 
 // C major, because nothing about a quiz should sound ominous.
 const C5 = 523.25, E5 = 659.25, G5 = 783.99, C6 = 1046.5, E6 = 1318.5, G4 = 392, A4 = 440
+const D5 = 587.33, A5 = 880
 
 export const sounds = {
   /** The last few seconds of a clock. Higher as it runs out. */
   tick(secondsLeft) {
     note(secondsLeft <= 2 ? 1320 : 990, 0, 0.06, { type: 'square', gain: 0.05 })
+  },
+
+  /**
+   * A phone arriving in the lobby.
+   *
+   * This one fires more than every other sound here put together — thirty of
+   * them inside a minute at the start of a lesson — so it is quieter than
+   * everything except the clock tick, and it climbs a pentatonic ladder as the
+   * room fills. Thirty of the same blip is a smoke alarm; thirty rising ones sound
+   * like something filling up, and pentatonic means any two that land on top of
+   * each other still agree.
+   */
+  join(nth = 0, at = 0) {
+    const ladder = [C5, D5, E5, G5, A5, C6]
+    const f = ladder[nth % ladder.length]
+    note(f, at, 0.09, { type: 'triangle', gain: 0.07, slideTo: f * 1.5 })
   },
 
   /** A question arriving. */
