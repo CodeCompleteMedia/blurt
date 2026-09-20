@@ -106,11 +106,14 @@
 
   .p1 .name {
     font-size: clamp(30px, 5.6vw, 104px);
-    color: var(--accent);
+    color: var(--neon-yellow);
+    text-shadow: var(--text-glow-yellow);
   }
 
   .score {
-    color: var(--muted);
+    font-family: var(--bulbs);
+    font-weight: 800;
+    color: var(--ink-muted);
     font-size: clamp(14px, 1.8vw, 30px);
     font-variant-numeric: tabular-nums;
   }
@@ -119,17 +122,19 @@
     display: grid;
     place-items: center;
     width: 100%;
-    border-radius: 12px 12px 0 0;
-    background: var(--surface);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    background: var(--stage-raised);
+    box-shadow: inset 0 0 0 1px var(--line);
     font-family: var(--display);
     font-size: clamp(28px, 4vw, 64px);
-    color: var(--muted);
+    color: var(--ink-muted);
     transition: background 0.5s ease, color 0.5s ease;
   }
 
   .block.lit {
-    background: var(--surface-2);
+    background: var(--stage-high);
     color: var(--ink);
+    box-shadow: inset 0 2px 0 var(--neon-cyan);
   }
 
   .p1 .block {
@@ -137,8 +142,9 @@
   }
 
   .p1 .block.lit {
-    background: var(--accent);
-    color: #1a0d07;
+    background: var(--neon-yellow);
+    color: var(--on-yellow);
+    box-shadow: var(--glow-yellow);
   }
 
   .p2 .block {
@@ -160,6 +166,10 @@
     font-size: clamp(15px, 1.7vw, 28px);
   }
 
+  .rest .score {
+    font-size: 1em;
+  }
+
   .rest li {
     display: flex;
     gap: 10px;
@@ -168,6 +178,6 @@
 
   .rank {
     font-family: var(--display);
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 </style>

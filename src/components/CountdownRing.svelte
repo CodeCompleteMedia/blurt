@@ -19,13 +19,15 @@
 
 <div class="ring" style="width: {size}px; height: {size}px">
   <svg viewBox="0 0 108 108">
-    <circle cx="54" cy="54" {r} fill="none" stroke="var(--line)" stroke-width="8" />
+    <circle cx="54" cy="54" {r} fill="none" stroke="var(--stage-high)" stroke-width="8" />
     <circle
+      class="arc"
+      class:late={fraction < 0.25}
+      class:held={frozenAt !== null}
       cx="54"
       cy="54"
       {r}
       fill="none"
-      stroke={fraction < 0.25 ? 'var(--accent)' : '#fff'}
       stroke-width="8"
       stroke-linecap="round"
       stroke-dasharray={circumference}
@@ -33,7 +35,7 @@
       transform="rotate(-90 54 54)"
     />
   </svg>
-  <span class="count">{seconds}</span>
+  <span class="count" class:late={fraction < 0.25}>{seconds}</span>
 </div>
 
 <style>
@@ -48,12 +50,36 @@
     inset: 0;
     width: 100%;
     height: 100%;
+    overflow: visible;
+  }
+
+  /* Cyan while there is time, pink for the last quarter, grey and still while
+     the teacher holds the game. */
+  .arc {
+    stroke: var(--neon-cyan);
+    filter: drop-shadow(0 0 6px #19e3ffcc);
+    transition: stroke 0.3s ease;
+  }
+
+  .arc.late {
+    stroke: var(--neon-pink);
+    filter: drop-shadow(0 0 6px #ff2e97cc);
+  }
+
+  .arc.held {
+    stroke: var(--ink-muted);
+    filter: none;
   }
 
   .count {
-    font-family: var(--display);
+    font-family: var(--bulbs);
     font-size: 44px;
-    font-weight: 400;
+    font-weight: 900;
+    line-height: 1;
     font-variant-numeric: tabular-nums;
+  }
+
+  .count.late {
+    color: var(--neon-pink);
   }
 </style>

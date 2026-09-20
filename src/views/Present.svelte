@@ -94,7 +94,14 @@
   function celebrate(place) {
     if (place > 1) return sounds.step(place)
     sounds.fanfare()
-    const burst = { disableForReducedMotion: true, particleCount: 90, spread: 70, startVelocity: 55 }
+    const burst = {
+      disableForReducedMotion: true,
+      particleCount: 90,
+      spread: 70,
+      startVelocity: 55,
+      // The tubes, and the four answer rims.
+      colors: ['#ff2e97', '#19e3ff', '#ffe53d', '#ff4d8d', '#5c8bff', '#ffb020', '#2dff9a'],
+    }
     confetti({ ...burst, origin: { x: 0.15, y: 0.75 }, angle: 60 })
     confetti({ ...burst, origin: { x: 0.85, y: 0.75 }, angle: 120 })
     setTimeout(() => confetti({ ...burst, particleCount: 140, spread: 110, origin: { y: 0.55 } }), calm ? 0 : 350)
@@ -181,7 +188,7 @@
 
 <main class="stage surface">
   <header>
-    <span class="eyebrow">blurt</span>
+    <span class="wordmark brand">blurt!</span>
     {#if game && game.question_index >= 0 && phase !== 'final'}
       <span class="eyebrow">Question {game.question_index + 1}</span>
     {/if}
@@ -366,22 +373,22 @@
     padding: 4px 12px;
     border: 1px solid var(--line);
     border-radius: 999px;
-    color: var(--muted);
+    color: var(--ink-muted);
     font-size: 11px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
 
   .sound.off {
-    border-color: var(--accent);
-    color: var(--accent);
+    border-color: var(--neon-pink);
+    color: var(--neon-pink);
   }
 
   .leave {
     padding: 4px 12px;
     border: 1px solid var(--line);
     border-radius: 999px;
-    color: var(--muted);
+    color: var(--ink-muted);
     font-size: 11px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -395,11 +402,21 @@
     min-width: 0;
   }
 
+  .brand {
+    font-size: 22px;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
   header .code {
     margin-left: auto;
+    padding: 2px 14px;
+    border: 2px solid var(--neon-cyan);
+    border-radius: var(--radius-pill);
     color: var(--ink);
-    font-size: 15px;
-    letter-spacing: 0.3em;
+    font-family: var(--display);
+    font-size: 18px;
+    letter-spacing: 0.2em;
   }
 
   section {
@@ -418,18 +435,27 @@
 
   .muted {
     margin: 0;
-    color: var(--muted);
+    color: var(--ink-muted);
     font-size: clamp(16px, 1.8vw, 22px);
   }
 
   .hush {
-    color: var(--muted);
+    color: var(--ink-muted);
     font-size: clamp(48px, 9vw, 110px);
   }
 
+  /* The room code on a lit plate. In Bungee, not the scoreboard face: this is
+     the one string the room has to read and retype, and in dot-matrix B/8 and
+     S/5 are a couple of dots apart. Same reason Q left the alphabet. */
   .code-big {
+    padding: 0.12em 0.3em 0.12em 0.42em;
+    border: 3px solid var(--neon-cyan);
+    border-radius: var(--radius-lg);
+    background: var(--stage-raised);
+    box-shadow: var(--glow-cyan);
+    font-family: var(--display);
     font-size: clamp(72px, 15vw, 200px);
-    letter-spacing: 0.01em;
+    letter-spacing: 0.12em;
   }
 
   .waiting {
@@ -448,8 +474,9 @@
 
   .roster li {
     padding: 8px 18px;
-    border-radius: 999px;
-    background: var(--surface);
+    border-radius: var(--radius-pill);
+    background: var(--stage-raised);
+    box-shadow: inset 0 0 0 1px var(--line-strong);
     font-size: clamp(16px, 2vw, 38px);
   }
 
@@ -481,22 +508,23 @@
   .prompt {
     margin: 0;
     font-size: clamp(18px, 2.4vw, 32px);
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .prompt strong {
-    color: var(--accent);
+    color: var(--neon-pink);
   }
 
   .who {
     font-size: clamp(56px, 11vw, 140px);
-    color: var(--accent);
+    color: var(--neon-pink);
+    text-shadow: var(--text-glow-pink);
   }
 
   .claimed .sub {
     margin: 0;
     font-size: clamp(20px, 2.6vw, 34px);
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   /* Multiple choice */
@@ -528,19 +556,21 @@
     width: 120px;
     height: 120px;
     padding: 10px;
-    border: 4px solid var(--accent);
+    border: 4px solid var(--neon-pink);
     border-radius: 50%;
+    box-shadow: var(--glow-pink);
     font-family: var(--display);
     font-size: 34px;
     line-height: 0.95;
     text-align: center;
-    color: var(--accent);
+    color: var(--neon-pink);
     text-transform: uppercase;
   }
 
   .times-up.all-in {
-    border-color: #3fbf87;
-    color: #3fbf87;
+    border-color: var(--correct);
+    box-shadow: var(--glow-correct);
+    color: var(--correct);
     font-size: 26px;
   }
 
@@ -590,7 +620,7 @@
     min-height: 0;
     place-items: center;
     font-size: clamp(24px, 3.4vw, 60px);
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .typed-prompt p {
@@ -613,13 +643,13 @@
     gap: 20px;
     padding: 12px 20px;
     border-radius: 10px;
-    background: var(--surface);
-    color: var(--muted);
+    background: var(--stage-raised);
+    color: var(--ink-muted);
   }
 
   .typed li.right {
     color: var(--ink);
-    box-shadow: 0 0 0 3px #3fbf87 inset;
+    box-shadow: 0 0 0 3px var(--correct) inset;
   }
 
   .typed .n {
@@ -633,13 +663,13 @@
 
   .answered {
     margin: 0;
-    color: var(--muted);
+    color: var(--ink-muted);
     font-size: clamp(14px, 1.5vw, 24px);
     font-variant-numeric: tabular-nums;
   }
 
   .paused-note {
-    color: var(--accent);
+    color: var(--neon-pink);
   }
 
   /* At results the tiles are the chart, so they take the room rather than

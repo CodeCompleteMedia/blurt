@@ -21,16 +21,16 @@
 </script>
 
 {#if onclick}
-  <button class="tile {state}" style="--tile: {shape.color}" {disabled} {onclick} aria-label={shape.label}>
-    <Shape shape={shape.key} size={showText ? 34 : 56} color="#fff" />
+  <button class="tile {state}" style="--tile: {shape.color}; --rim: {shape.rim}" {disabled} {onclick} aria-label={shape.label}>
+    <Shape shape={shape.key} size={showText ? 34 : 56} color="var(--on-tile)" />
     {#if showText}<span class="text">{choiceText}</span>{/if}
   </button>
 {:else}
-  <div class="tile {state}" style="--tile: {shape.color}">
+  <div class="tile {state}" style="--tile: {shape.color}; --rim: {shape.rim}">
     {#if count !== null}
       <div class="fill" style="width: {Math.max(share * 100, 2)}%"></div>
     {/if}
-    <Shape shape={shape.key} size={showText ? 34 : 56} color="#fff" />
+    <Shape shape={shape.key} size={showText ? 34 : 56} color="var(--on-tile)" />
     {#if showText}<span class="text">{choiceText}</span>{/if}
     {#if count !== null}
       <span class="count">{count}</span>
@@ -46,13 +46,20 @@
     align-items: center;
     gap: 16px;
     padding: 20px 22px;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: var(--tile);
-    color: #fff;
+    color: var(--on-tile);
+    /* Lit plexiglass: the fill, a neon rim, and the glow it throws. */
+    box-shadow:
+      inset 0 0 0 2px var(--rim),
+      0 0 18px -4px var(--rim);
     text-align: left;
     min-height: 88px;
     overflow: hidden;
-    transition: opacity 0.2s ease, transform 0.15s ease;
+    transition:
+      opacity 0.2s ease,
+      transform 0.15s ease,
+      box-shadow 0.2s ease;
   }
 
   .tile > :global(svg),
@@ -71,22 +78,24 @@
 
   .tile.dimmed {
     opacity: 0.28;
+    box-shadow: none;
   }
 
   /* At results the tile becomes its own bar chart: the ground goes dark and the
      fill shows this answer's share of the room. */
   .tile.correct,
   .tile.wrong {
-    background: var(--surface);
+    background: var(--stage-raised);
     color: var(--ink);
   }
 
   .tile.correct {
-    box-shadow: 0 0 0 3px var(--tile) inset;
+    box-shadow: var(--glow-correct);
   }
 
   .tile.wrong {
     opacity: 0.6;
+    box-shadow: inset 0 0 0 1px var(--line);
   }
 
   .fill {
@@ -115,19 +124,25 @@
 
   .count {
     margin-left: auto;
-    font-family: var(--display);
+    font-family: var(--bulbs);
+    font-weight: 900;
     font-size: clamp(28px, 3.6vw, 72px);
     font-variant-numeric: tabular-nums;
     line-height: 1;
   }
 
   .tick {
+    color: var(--correct);
+    font-weight: 700;
     font-size: clamp(22px, 2.4vw, 32px);
     line-height: 1;
   }
 
   button.tile:hover:not(:disabled) {
     transform: translateY(-2px);
+    box-shadow:
+      inset 0 0 0 2px var(--rim),
+      0 0 28px 0 var(--rim);
   }
 
   button.tile:disabled {

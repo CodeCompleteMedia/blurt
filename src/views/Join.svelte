@@ -52,13 +52,14 @@
 
 <main class="surface">
   <div class="card">
-    <h1>blurt</h1>
+    <h1 class="wordmark">blurt!</h1>
 
     {#if step === 'code'}
       <form onsubmit={submitCode}>
         <label for="code">Room code</label>
         <input
           id="code"
+          class="code"
           bind:this={field}
           bind:value={code}
           placeholder="ABC12"
@@ -99,7 +100,7 @@
   }
 
   .teacher {
-    color: var(--muted);
+    color: var(--ink-muted);
     font-size: 13px;
     text-underline-offset: 3px;
   }
@@ -118,7 +119,6 @@
   h1 {
     font-size: 64px;
     text-align: center;
-    color: var(--accent);
   }
 
   form {
@@ -130,16 +130,16 @@
     font-size: 12px;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   input {
     width: 100%;
     min-width: 0;
     padding: 18px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--surface);
+    border: 2px solid var(--line-strong);
+    border-radius: var(--radius-md);
+    background: var(--stage-raised);
     color: var(--ink);
     font: inherit;
     font-size: 24px;
@@ -147,24 +147,50 @@
     letter-spacing: 0.08em;
   }
 
+  input:focus {
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 16px -2px #19e3ff99;
+  }
+
+  /* 0.8, not 0.7: the blend against --stage-raised is 5.85:1 rather than
+     4.76:1, so a nudge in either direction does not quietly fail AA. */
+  input::placeholder {
+    color: var(--ink-muted);
+    opacity: 0.8;
+  }
+
+  /* The same face the wall shows it in, so what a student copies and what they
+     type look like the same thing. */
+  input.code {
+    font-family: var(--display);
+    font-size: 34px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
   button[type='submit'] {
     padding: 18px;
     border-radius: 10px;
-    background: var(--accent);
-    color: #1a0d07;
+    background: var(--neon-pink);
+    color: var(--on-pink);
+    font-family: var(--display);
     font-size: 18px;
-    font-weight: 700;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    box-shadow: 0 4px 0 var(--neon-pink-deep);
   }
 
   button[type='submit']:disabled {
-    background: var(--surface-2);
-    color: var(--muted);
+    background: var(--stage-high);
+    color: var(--ink-muted);
+    box-shadow: none;
     cursor: default;
   }
 
   .back {
     justify-self: center;
-    color: var(--muted);
+    color: var(--ink-muted);
     font-size: 14px;
     text-decoration: underline;
   }
@@ -173,8 +199,8 @@
     margin: 0;
     padding: 12px 14px;
     border-radius: 8px;
-    background: var(--surface);
-    border-left: 3px solid var(--accent);
+    background: var(--stage-raised);
+    border: 1px solid var(--wrong);
     color: var(--ink);
     font-size: 15px;
   }

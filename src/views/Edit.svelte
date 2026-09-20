@@ -381,23 +381,23 @@
   .titlebox:hover,
   .titlebox:focus {
     border-color: var(--line);
-    background: var(--surface);
+    background: var(--stage-raised);
   }
 
   .save {
     font-size: 12px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .save.busy {
-    color: var(--accent);
+    color: var(--neon-pink);
   }
 
   .muted {
     margin: 0;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .ghost {
@@ -412,14 +412,14 @@
   .primary {
     padding: 11px 16px;
     border-radius: 10px;
-    background: var(--accent);
-    color: #1a0d07;
+    background: var(--neon-pink);
+    color: var(--on-pink);
     font-weight: 600;
   }
 
   .primary:disabled {
-    background: var(--surface-2);
-    color: var(--muted);
+    background: var(--stage-high);
+    color: var(--ink-muted);
   }
 
   .empty {
@@ -454,7 +454,7 @@
     padding: 14px 18px;
     border: 1px solid var(--line);
     border-radius: 10px;
-    background: var(--surface);
+    background: var(--stage-raised);
   }
 
   .title {
@@ -468,14 +468,14 @@
   .link {
     padding: 4px 8px;
     font-size: 13px;
-    color: var(--muted);
+    color: var(--ink-muted);
     text-decoration: underline;
     text-underline-offset: 3px;
   }
 
   .link.danger,
   .warn {
-    color: #f09070;
+    color: var(--wrong);
     font-weight: 600;
   }
 
@@ -484,7 +484,7 @@
     gap: 10px;
     align-items: center;
     font-size: 13px;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   select,
@@ -492,7 +492,7 @@
     padding: 8px 10px;
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: var(--surface);
+    background: var(--stage-raised);
     color: var(--ink);
     font: inherit;
   }
@@ -528,9 +528,9 @@
   .problem {
     margin: 0;
     padding: 12px 14px;
-    border-left: 3px solid var(--accent);
+    border: 1px solid var(--neon-pink);
     border-radius: 8px;
-    background: var(--surface);
+    background: var(--stage-raised);
   }
 
   .sr {

@@ -23,7 +23,7 @@
 
 <div class="shell">
   <nav aria-label="Teacher">
-    <a class="brand" href="/host">blurt</a>
+    <a class="wordmark brand" href="/host">blurt!</a>
 
     <div class="places">
       <a href="/host" aria-current={current === 'host' ? 'page' : undefined}>
@@ -61,14 +61,16 @@
       calc(var(--gutter) + env(safe-area-inset-left, 0px));
     padding-top: calc(10px + env(safe-area-inset-top, 0px));
     border-bottom: 1px solid var(--line);
-    background: var(--surface);
+    background: var(--stage-raised);
   }
 
+  /* Face, colour and glow come from .wordmark — this only sizes it. The hand
+     rolled copy that used to live here glowed at 1/8/— against the token's
+     2/14/40, so the nav sign was dimmer than every other one in the product. */
   .brand {
-    font-family: var(--display);
     font-size: 24px;
     line-height: 1;
-    color: var(--accent);
+    text-transform: uppercase;
     text-decoration: none;
   }
 
@@ -83,7 +85,7 @@
     gap: 8px;
     padding: 7px 14px;
     border-radius: 999px;
-    color: var(--muted);
+    color: var(--ink-muted);
     font-size: 14px;
     font-weight: 500;
     text-decoration: none;
@@ -94,15 +96,15 @@
   }
 
   .places a[aria-current='page'] {
-    background: var(--surface-2);
+    background: var(--stage-high);
     color: var(--ink);
   }
 
   .live {
     padding: 1px 8px;
     border-radius: 999px;
-    background: rgba(255, 110, 69, 0.16);
-    color: var(--accent);
+    background: rgba(255, 46, 151, 0.16);
+    color: var(--neon-pink);
     font-size: 11px;
     letter-spacing: 0.1em;
   }
@@ -120,7 +122,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 13px;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .who button {

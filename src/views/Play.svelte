@@ -396,7 +396,7 @@
   }
 
   .accent {
-    color: var(--accent);
+    color: var(--neon-pink);
   }
 
   /* The one screen where the phone owes the player a plain answer: right or
@@ -406,24 +406,25 @@
   }
 
   .good {
-    color: #4fd39a;
+    color: var(--correct);
   }
 
   .run {
     margin: 0;
     font-family: var(--display);
     font-size: 26px;
-    color: var(--accent);
+    color: var(--neon-yellow);
   }
 
   .bad {
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .total {
     margin-top: 26px;
-    font-family: var(--display);
-    font-size: 30px;
+    font-family: var(--bulbs);
+    font-weight: 800;
+    font-size: 34px;
     font-variant-numeric: tabular-nums;
   }
 
@@ -433,12 +434,12 @@
   }
 
   .hush {
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .muted {
     margin: 0;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .small {
@@ -451,29 +452,43 @@
     gap: 22px;
   }
 
+  /* The buzzer: a lit dome on a base it drops onto, ringed by a tube. The only
+     glowing thing on the phone. */
   .blurt {
     width: min(78vw, 300px);
     aspect-ratio: 1;
     border-radius: 50%;
-    background: var(--accent);
-    color: #1a0d07;
+    background: radial-gradient(circle at 38% 30%, #ff7cbf 0 12%, var(--neon-pink) 40%);
+    color: var(--on-pink);
     font-family: var(--display);
     font-size: clamp(40px, 12vw, 56px);
     font-weight: 400;
     letter-spacing: 0.01em;
-    box-shadow: 0 10px 0 #a33d22;
-    transition: transform 0.08s ease, box-shadow 0.08s ease;
+    box-shadow:
+      0 10px 0 var(--neon-pink-deep),
+      0 0 0 6px var(--stage),
+      0 0 0 9px var(--neon-pink),
+      0 0 40px 6px #ff2e9780;
+    transition:
+      transform 0.08s ease,
+      box-shadow 0.08s ease;
   }
 
   .blurt:active:not(:disabled) {
     transform: translateY(8px);
-    box-shadow: 0 2px 0 #a33d22;
+    box-shadow:
+      0 2px 0 var(--neon-pink-deep),
+      0 0 0 6px var(--stage),
+      0 0 0 9px var(--neon-pink),
+      0 0 64px 12px #ff2e97a6;
   }
 
   .blurt:disabled {
-    background: var(--surface-2);
-    color: var(--muted);
-    box-shadow: none;
+    background: var(--stage-high);
+    color: var(--ink-muted);
+    box-shadow:
+      0 0 0 6px var(--stage),
+      0 0 0 9px var(--line-strong);
     cursor: default;
   }
 
@@ -505,7 +520,7 @@
     padding: 18px;
     border: 1px solid var(--line);
     border-radius: 10px;
-    background: var(--surface);
+    background: var(--stage-raised);
     color: var(--ink);
     font: inherit;
     /* 16px or more, or iOS zooms the page when the field takes focus. */
@@ -516,15 +531,20 @@
   .typing button {
     padding: 18px;
     border-radius: 10px;
-    background: var(--accent);
-    color: #1a0d07;
+    background: var(--neon-pink);
+    color: var(--on-pink);
+    font-family: var(--display);
     font-size: 18px;
-    font-weight: 700;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    box-shadow: 0 4px 0 var(--neon-pink-deep);
   }
 
   .typing button:disabled {
-    background: var(--surface-2);
-    color: var(--muted);
+    background: var(--stage-high);
+    color: var(--ink-muted);
+    box-shadow: none;
   }
 
   .typing .small {
@@ -543,7 +563,7 @@
     padding: 10px 18px;
     border: 1px solid var(--line);
     border-radius: 999px;
-    color: var(--muted);
+    color: var(--ink-muted);
     font-size: 13px;
   }
 </style>

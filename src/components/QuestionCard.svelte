@@ -68,7 +68,7 @@
   {#if question.kind === 'choice'}
     <div class="choices">
       {#each question.choices as choice, i}
-        <div class="choice" style="--tile: {SHAPES[i].color}">
+        <div class="choice" style="--tile: {SHAPES[i].color}; --rim: {SHAPES[i].rim}">
           <input
             type="radio"
             name="correct-{question.key}"
@@ -77,7 +77,7 @@
             onchange={() => set({ correctIndex: i })}
             aria-label="Choice {i + 1} is correct"
           />
-          <span class="mark"><Shape shape={SHAPES[i].key} size={16} color="#fff" /></span>
+          <span class="mark"><Shape shape={SHAPES[i].key} size={16} color="var(--on-tile)" /></span>
           <input
             type="text"
             id="t-{question.key}-{i}"
@@ -166,11 +166,11 @@
     padding: 16px 18px;
     border: 1px solid var(--line);
     border-radius: 12px;
-    background: var(--surface);
+    background: var(--stage-raised);
   }
 
   .card.invalid {
-    border-color: rgba(255, 110, 69, 0.45);
+    border-color: rgba(255, 46, 151, 0.45);
   }
 
   header {
@@ -191,11 +191,11 @@
     font-size: 12px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .status.warn {
-    color: var(--accent);
+    color: var(--neon-pink);
     letter-spacing: 0;
     text-transform: none;
     font-size: 13px;
@@ -210,7 +210,7 @@
   .link {
     padding: 4px 8px;
     font-size: 13px;
-    color: var(--muted);
+    color: var(--ink-muted);
     text-decoration: underline;
     text-underline-offset: 3px;
     cursor: pointer;
@@ -222,7 +222,7 @@
   }
 
   .link.danger {
-    color: #f09070;
+    color: var(--wrong);
     font-weight: 600;
   }
 
@@ -242,7 +242,7 @@
     padding: 10px 12px;
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: var(--ground);
+    background: var(--stage);
     color: var(--ink);
     font: inherit;
   }
@@ -269,7 +269,7 @@
   .choice input[type='radio'] {
     width: 18px;
     height: 18px;
-    accent-color: var(--tile);
+    accent-color: var(--rim);
   }
 
   .mark {
@@ -277,8 +277,9 @@
     place-items: center;
     width: 28px;
     height: 28px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: var(--tile);
+    box-shadow: inset 0 0 0 1px var(--rim);
   }
 
   .tf {
@@ -291,13 +292,13 @@
     padding: 12px;
     border: 1px solid var(--line);
     border-radius: 8px;
-    color: var(--muted);
+    color: var(--ink-muted);
     font-weight: 600;
   }
 
   .pick.on {
-    border-color: #3fbf87;
-    background: rgba(63, 191, 135, 0.14);
+    border-color: var(--correct);
+    background: rgba(57, 255, 136, 0.14);
     color: var(--ink);
   }
 
@@ -310,7 +311,7 @@
   .hint {
     margin: 0;
     font-size: 13px;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   footer {
@@ -326,15 +327,15 @@
     font-size: 12px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .toggle {
     padding: 9px 16px;
     border: 1px solid var(--line);
     border-radius: 999px;
-    background: var(--ground);
-    color: var(--muted);
+    background: var(--stage);
+    color: var(--ink-muted);
     font: inherit;
     font-size: 14px;
     letter-spacing: 0;
@@ -342,8 +343,8 @@
   }
 
   .toggle.on {
-    border-color: var(--accent);
-    background: rgba(255, 110, 69, 0.14);
+    border-color: var(--neon-pink);
+    background: rgba(255, 46, 151, 0.14);
     color: var(--ink);
   }
 

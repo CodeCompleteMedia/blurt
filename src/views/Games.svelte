@@ -262,7 +262,7 @@
 
   .muted {
     margin: 0;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .ghost {
@@ -292,7 +292,7 @@
     padding: 14px 18px;
     border: 1px solid var(--line);
     border-radius: 10px;
-    background: var(--surface);
+    background: var(--stage-raised);
   }
 
   .title {
@@ -306,13 +306,13 @@
   .link {
     padding: 4px 8px;
     font-size: 13px;
-    color: var(--muted);
+    color: var(--ink-muted);
     text-decoration: underline;
     text-underline-offset: 3px;
   }
 
   .link.danger {
-    color: #f09070;
+    color: var(--wrong);
     font-weight: 600;
   }
 
@@ -329,10 +329,9 @@
     display: grid;
     gap: 12px;
     padding: 18px 20px;
-    border: 1px solid var(--line);
-    border-left: 3px solid var(--accent);
+    border: 1px solid var(--neon-pink);
     border-radius: 12px;
-    background: var(--surface);
+    background: var(--stage-raised);
   }
 
   .verdict p {
@@ -350,7 +349,7 @@
   .pc {
     font-family: var(--display);
     font-size: 22px;
-    color: var(--accent);
+    color: var(--neon-pink);
     font-variant-numeric: tabular-nums;
   }
 
@@ -362,7 +361,7 @@
 
   .what em {
     font-size: 14px;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .tabs {
@@ -373,13 +372,13 @@
   .tabs button {
     padding: 7px 14px;
     border-radius: 999px;
-    color: var(--muted);
+    color: var(--ink-muted);
     font-size: 14px;
     font-weight: 500;
   }
 
   .tabs button.on {
-    background: var(--surface-2);
+    background: var(--stage-high);
     color: var(--ink);
   }
 
@@ -400,12 +399,12 @@
   thead th {
     position: sticky;
     top: 0;
-    background: var(--surface-2);
+    background: var(--stage-high);
     text-align: left;
     font-size: 11px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--ink-muted);
     font-weight: 500;
     padding: 9px 12px;
     white-space: nowrap;
@@ -428,14 +427,14 @@
   }
 
   tr.bad .pc {
-    color: var(--accent);
+    color: var(--neon-pink);
     font-family: inherit;
     font-size: inherit;
     font-weight: 700;
   }
 
   .times {
-    color: var(--muted);
+    color: var(--ink-muted);
     font-size: 12px;
   }
 
@@ -443,22 +442,22 @@
     display: inline-block;
     padding: 2px 9px;
     border-radius: 999px;
-    background: rgba(224, 102, 74, 0.16);
-    color: #f09070;
+    background: rgba(255, 85, 119, 0.16);
+    color: var(--wrong);
     font-size: 12px;
     white-space: nowrap;
   }
 
   .pill.won {
-    background: rgba(63, 191, 135, 0.16);
-    color: #6fd7ac;
+    background: rgba(57, 255, 136, 0.16);
+    color: var(--correct);
   }
 
   .problem {
     margin: 0;
     padding: 12px 14px;
-    border-left: 3px solid var(--accent);
+    border: 1px solid var(--neon-pink);
     border-radius: 8px;
-    background: var(--surface);
+    background: var(--stage-raised);
   }
 </style>

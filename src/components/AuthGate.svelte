@@ -64,7 +64,7 @@
 {:else}
   <main class="surface gate">
     <form class="card" onsubmit={submit}>
-      <h1>blurt</h1>
+      <h1 class="wordmark">blurt!</h1>
       <p class="muted">
         {mode === 'in' ? 'Sign in to host a room or edit your quizzes.' : 'Create a teacher account.'}
       </p>
@@ -125,13 +125,12 @@
 
   h1 {
     font-size: 56px;
-    color: var(--accent);
     text-align: center;
   }
 
   .muted {
     margin: 0 0 8px;
-    color: var(--muted);
+    color: var(--ink-muted);
     text-align: center;
   }
 
@@ -148,40 +147,49 @@
     font-size: 12px;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   input {
     width: 100%;
     min-width: 0;
     padding: 14px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--surface);
+    border: 2px solid var(--line-strong);
+    border-radius: var(--radius-md);
+    background: var(--stage-raised);
     color: var(--ink);
     font: inherit;
     font-size: 17px;
+  }
+
+  input:focus {
+    border-color: var(--neon-cyan);
   }
 
   button[type='submit'] {
     margin-top: 6px;
     padding: 15px;
     border-radius: 10px;
-    background: var(--accent);
-    color: #1a0d07;
-    font-size: 17px;
-    font-weight: 700;
+    background: var(--neon-pink);
+    color: var(--on-pink);
+    font-family: var(--display);
+    font-size: 18px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    box-shadow: 0 4px 0 var(--neon-pink-deep);
   }
 
   button[type='submit']:disabled {
-    background: var(--surface-2);
-    color: var(--muted);
+    background: var(--stage-high);
+    color: var(--ink-muted);
+    box-shadow: none;
   }
 
   .switch {
     justify-self: center;
     margin-top: 4px;
-    color: var(--muted);
+    color: var(--ink-muted);
     font-size: 14px;
     text-decoration: underline;
   }
@@ -191,12 +199,12 @@
     margin: 0;
     padding: 12px 14px;
     border-radius: 8px;
-    background: var(--surface);
-    border-left: 3px solid var(--accent);
+    background: var(--stage-raised);
+    border: 1px solid var(--wrong);
     font-size: 15px;
   }
 
   .notice {
-    border-left-color: #3fbf87;
+    border-color: var(--correct);
   }
 </style>

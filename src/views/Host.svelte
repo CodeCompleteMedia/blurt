@@ -589,8 +589,12 @@
         </div>
         <p class="answer">Answer: <strong>{question?.answer ?? '—'}</strong></p>
         <div class="verdict">
-          <button class="yes" onclick={() => judge(true)}>Correct <kbd>Y</kbd></button>
-          <button class="no" onclick={() => judge(false)}>Wrong <kbd>N</kbd></button>
+          <button class="yes" onclick={() => judge(true)}>
+            <span aria-hidden="true">✓</span> Correct <kbd>Y</kbd>
+          </button>
+          <button class="no" onclick={() => judge(false)}>
+            <span aria-hidden="true">✗</span> Wrong <kbd>N</kbd>
+          </button>
         </div>
       </div>
     {:else if question && phase !== 'lobby' && phase !== 'final'}
@@ -717,19 +721,23 @@
     flex: 1;
   }
 
+  /* The room code in scoreboard bulbs, as it reads on the wall. */
   .code {
-    font-family: var(--display);
+    font-family: var(--bulbs);
+    font-weight: 800;
     font-size: 30px;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.12em;
   }
 
   .secs {
-    color: var(--accent);
+    color: var(--neon-pink);
+    font-family: var(--bulbs);
+    font-weight: 800;
     font-variant-numeric: tabular-nums;
   }
 
   .muted {
-    color: var(--muted);
+    color: var(--ink-muted);
     margin: 0;
   }
 
@@ -737,22 +745,22 @@
     padding: 16px 18px;
     border: 1px solid var(--line);
     border-radius: 10px;
-    background: var(--surface);
+    background: var(--stage-raised);
     display: grid;
     gap: 10px;
   }
 
   .panel.done {
-    border-left: 3px solid #3fbf87;
+    border-color: var(--correct);
   }
 
   .panel.warn {
-    border-left: 3px solid var(--accent);
+    border-color: var(--neon-pink);
   }
 
   .panel.claim {
-    border-color: var(--accent);
-    background: var(--surface-2);
+    border-color: var(--neon-pink);
+    background: var(--stage-high);
     grid-template-columns: 1fr auto;
     align-items: center;
     gap: 12px 20px;
@@ -761,7 +769,7 @@
   .who {
     font-family: var(--display);
     font-size: 40px;
-    color: var(--accent);
+    color: var(--neon-pink);
   }
 
   .qtext {
@@ -773,7 +781,7 @@
   .answer {
     margin: 0;
     font-size: 14px;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .answer strong {
@@ -792,15 +800,15 @@
     border-radius: 10px;
     font-size: 16px;
     font-weight: 700;
-    color: #10151b;
+    color: var(--stage);
   }
 
   .yes {
-    background: #3fbf87;
+    background: var(--correct);
   }
 
   .no {
-    background: #e0664a;
+    background: var(--wrong);
   }
 
   kbd {
@@ -808,7 +816,7 @@
     margin-left: 8px;
     padding: 1px 6px;
     border-radius: 4px;
-    background: rgba(16, 21, 27, 0.25);
+    background: rgba(11, 7, 22, 0.25);
     font: inherit;
     font-size: 12px;
   }
@@ -842,7 +850,7 @@
 
   .setting span {
     font-size: 13px;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .setting.disabled {
@@ -853,18 +861,18 @@
   .setting select {
     min-width: 116px;
     padding: 8px 14px;
-    border: 1px solid var(--line);
+    border: 1px solid var(--line-strong);
     border-radius: 999px;
-    background: var(--surface-2);
-    color: var(--muted);
+    background: var(--stage-high);
+    color: var(--ink-muted);
     font: inherit;
     font-size: 13px;
     text-align: center;
   }
 
   .toggle.on {
-    border-color: var(--accent);
-    background: rgba(255, 110, 69, 0.14);
+    border-color: var(--neon-pink);
+    background: rgba(255, 46, 151, 0.14);
     color: var(--ink);
   }
 
@@ -876,7 +884,7 @@
   .note {
     margin: 12px 0 0;
     font-size: 12px;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .tiles {
@@ -908,7 +916,7 @@
     padding: 14px 18px;
     border: 1px solid var(--line);
     border-radius: 10px;
-    background: var(--surface);
+    background: var(--stage-raised);
   }
 
   .quizzes li div {
@@ -929,12 +937,12 @@
   }
 
   .wrapped {
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .ghost.held {
-    border-color: var(--accent);
-    color: var(--accent);
+    border-color: var(--neon-pink);
+    color: var(--neon-pink);
   }
 
   .acts {
@@ -945,13 +953,13 @@
   .link {
     padding: 2px 6px;
     font-size: 12px;
-    color: var(--muted);
+    color: var(--ink-muted);
     text-decoration: underline;
     text-underline-offset: 3px;
   }
 
   .link.danger {
-    color: #f09070;
+    color: var(--wrong);
     font-weight: 600;
   }
 
@@ -959,9 +967,9 @@
     width: 100%;
     max-width: 180px;
     padding: 4px 8px;
-    border: 1px solid var(--accent);
+    border: 1px solid var(--neon-pink);
     border-radius: 6px;
-    background: var(--ground);
+    background: var(--stage);
     color: var(--ink);
     font: inherit;
   }
@@ -971,12 +979,12 @@
     gap: 2px;
     padding: 12px 14px;
     border-radius: 10px;
-    background: var(--surface);
+    background: var(--stage-raised);
     border: 1px solid var(--line);
   }
 
   .tile.flag {
-    border-color: var(--accent);
+    border-color: var(--neon-pink);
   }
 
   .tile .n {
@@ -988,7 +996,7 @@
 
   .tile small {
     font-size: 16px;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .scroll {
@@ -1008,12 +1016,12 @@
   thead th {
     position: sticky;
     top: 0;
-    background: var(--surface-2);
+    background: var(--stage-high);
     text-align: left;
     font-size: 11px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--ink-muted);
     font-weight: 500;
     padding: 9px 12px;
   }
@@ -1033,7 +1041,7 @@
   }
 
   tr.quiet .name {
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 
   .pill {
@@ -1046,18 +1054,18 @@
   }
 
   .pill.in {
-    background: rgba(63, 191, 135, 0.16);
-    color: #6fd7ac;
+    background: rgba(57, 255, 136, 0.16);
+    color: var(--correct);
   }
 
   .pill.wait {
-    background: var(--surface-2);
-    color: var(--muted);
+    background: var(--stage-high);
+    color: var(--ink-muted);
   }
 
   .pill.out {
-    background: rgba(224, 102, 74, 0.16);
-    color: #f09070;
+    background: rgba(255, 85, 119, 0.16);
+    color: var(--wrong);
   }
 
   .ghost {
@@ -1075,8 +1083,8 @@
     justify-self: start;
     padding: 10px 16px;
     border-radius: 8px;
-    background: var(--accent);
-    color: #1a0d07;
+    background: var(--neon-pink);
+    color: var(--on-pink);
     font-weight: 600;
   }
 

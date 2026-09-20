@@ -1,5 +1,5 @@
 /*
- * The two faces, declared rather than imported.
+ * The faces, declared rather than imported.
  *
  * Fontsource's own stylesheets pull in every subset it ships — for Rubik that is
  * arabic, hebrew and two cyrillics, 68KB of files this app will never request but
@@ -16,12 +16,35 @@
  * add it back — one @font-face, plus a choice about preloading.
  */
 @font-face {
-  font-family: 'Londrina Solid';
+  font-family: 'Bungee';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('../node_modules/@fontsource/londrina-solid/files/londrina-solid-latin-400-normal.woff2')
+  src: url('../node_modules/@fontsource/bungee/files/bungee-latin-400-normal.woff2') format('woff2');
+}
+
+/* The wordmark only. */
+@font-face {
+  font-family: 'Bungee Inline';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../node_modules/@fontsource/bungee-inline/files/bungee-inline-latin-400-normal.woff2')
     format('woff2');
+}
+
+/* The light-bulb scoreboard: scores, counts, ranks and the timer — numbers that
+   change while the room watches. NOT the room code: a dot-matrix face puts B/8,
+   S/5 and Z/2 within a couple of dots of each other, and the code is the one
+   string a class has to read off a wall and retype. That goes in Bungee.
+   Variable, so one file covers the 700-900 weights used. */
+@font-face {
+  font-family: 'Doto';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../node_modules/@fontsource-variable/doto/files/doto-latin-wght-normal.woff2')
+    format('woff2-variations');
 }
 
 @font-face {
@@ -33,19 +56,56 @@
     format('woff2-variations');
 }
 
+/*
+ * The set: an 80s gameshow studio with the lights down.
+ *
+ * This block is the source of truth for the palette. If a tokens.json ever
+ * lands in the repo, say so here and note which way the values flow — a comment
+ * pointing at a file nobody can open is worse than no comment.
+ */
 :root {
-  --ground: #10151b;
-  --surface: #19212a;
-  --surface-2: #222c37;
-  --ink: #f1f5f8;
-  --muted: #90a1b2;
-  --line: rgba(241, 245, 248, 0.12);
-  --accent: #ff6e45;
+  /* The studio floor and its layers. */
+  --stage: #0b0716;
+  --stage-raised: #170d2e;
+  --stage-high: #241543;
+  --line: rgba(255, 255, 255, 0.14);
+  --line-strong: #6b54a6;
+  --ink: #fbf5ff;
+  --ink-muted: #b9a8dc;
 
-  /* Londrina Solid ships 100/300/400/900 only, and 400 is the heaviest this
-     design goes — the face is already solid at that weight, and 900 closed up
-     the counters at projector sizes. One weight, one file. */
-  --display: 'Londrina Solid', 'Trebuchet MS', sans-serif;
+  /* The tubes. Pink is the brand, cyan is focus and a healthy clock, yellow is
+     first place and nothing else. */
+  --neon-pink: #ff2e97;
+  --on-pink: #1a0010;
+  --neon-pink-deep: #a3005a;
+  --neon-cyan: #19e3ff;
+  --neon-yellow: #ffe53d;
+  --on-yellow: #1a1000;
+
+  /* State. Always with a mark or a word, never by hue alone. */
+  --correct: #39ff88;
+  --wrong: #ff5577;
+
+  --on-tile: #fff;
+  --focus: var(--neon-cyan);
+
+  /* Neon is light, not depth: a tight core and a wide bloom. One per region. */
+  --glow-pink: 0 0 2px #ff2e97, 0 0 12px #ff2e97b3, 0 0 36px #ff2e9766;
+  --glow-cyan: 0 0 2px #19e3ff, 0 0 12px #19e3ffb3, 0 0 32px #19e3ff59;
+  --glow-yellow: 0 0 2px #ffe53d, 0 0 14px #ffe53db3, 0 0 40px #ffe53d66;
+  --glow-correct: 0 0 0 3px #39ff88, 0 0 24px #39ff8880;
+  --text-glow-pink: 0 0 2px #ff2e97, 0 0 14px #ff2e97b3, 0 0 40px #ff2e9766;
+  --text-glow-yellow: 0 0 2px #ffe53d, 0 0 14px #ffe53db3, 0 0 40px #ffe53d66;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  /* Bungee is sign lettering: uppercase, one weight, never at sentence length. */
+  --display: 'Bungee', Impact, 'Arial Black', sans-serif;
+  --marquee: 'Bungee Inline', 'Bungee', Impact, sans-serif;
+  --bulbs: 'Doto', ui-monospace, 'Courier New', monospace;
 
   /* One gutter for every surface. These were 16, 20, 24 and 28 across the four
      views, which reads as carelessness on a phone where two of them are a swipe
@@ -73,7 +133,7 @@ body,
 body {
   margin: 0;
   color: var(--ink);
-  background: var(--ground);
+  background: var(--stage);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -85,6 +145,20 @@ h3 {
   font-weight: 400;
   line-height: 0.95;
   text-transform: uppercase;
+}
+
+/* The wordmark. Always pink, always lit. */
+.wordmark {
+  font-family: var(--marquee);
+  color: var(--neon-pink);
+  text-shadow: var(--text-glow-pink);
+}
+
+/* Numbers that change during play read as a board being lit. */
+.bulbs {
+  font-family: var(--bulbs);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 button {
@@ -105,7 +179,7 @@ button {
 }
 
 :focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
 
@@ -132,7 +206,7 @@ button {
   font-size: 12px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--ink-muted);
 }
 
 .demo-flag {
@@ -143,8 +217,8 @@ button {
   padding: 5px 11px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: var(--surface);
-  color: var(--muted);
+  background: var(--stage-raised);
+  color: var(--ink-muted);
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;

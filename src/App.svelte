@@ -16,7 +16,7 @@
 {#if !configured}
   <main class="setup">
     <div>
-      <h1>blurt</h1>
+      <h1 class="wordmark">blurt!</h1>
       <p>
         No database configured. This build is missing
         <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>.
@@ -69,12 +69,11 @@
 
   h1 {
     font-size: 56px;
-    color: var(--accent);
   }
 
   p {
     margin: 0;
-    color: var(--muted);
+    color: var(--ink-muted);
     line-height: 1.6;
   }
 
@@ -85,7 +84,7 @@
   code {
     font-family: ui-monospace, Menlo, monospace;
     font-size: 0.9em;
-    background: var(--surface);
+    background: var(--stage-raised);
     padding: 2px 6px;
     border-radius: 4px;
   }

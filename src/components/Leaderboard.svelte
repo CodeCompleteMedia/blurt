@@ -34,23 +34,37 @@
 
   li {
     display: grid;
-    grid-template-columns: 2.2rem 1fr auto;
+    grid-template-columns: 2.4rem 1fr auto;
     gap: 16px;
     align-items: center;
     padding: 14px 20px;
-    border-radius: 8px;
-    background: var(--surface);
+    border-radius: var(--radius-md);
+    background: var(--stage-raised);
+    box-shadow: inset 0 0 0 1px var(--line);
     font-size: clamp(18px, 2.4vw, 46px);
   }
 
+  /* The leader is lit: yellow means winning, and nothing else is yellow. */
   li:first-child {
-    background: var(--surface-2);
+    background: var(--stage-high);
+    box-shadow:
+      inset 0 0 0 2px var(--neon-yellow),
+      0 0 18px -2px #ffe53d80;
+  }
+
+  li:first-child .rank {
+    color: var(--neon-yellow);
+  }
+
+  li:first-child .score {
+    color: var(--ink);
   }
 
   .rank {
     font-family: var(--display);
-    font-size: 1.4em;
-    color: var(--muted);
+    font-size: 1.2em;
+    line-height: 1;
+    color: var(--ink-muted);
   }
 
   .name {
@@ -58,7 +72,9 @@
   }
 
   .score {
+    font-family: var(--bulbs);
+    font-weight: 700;
     font-variant-numeric: tabular-nums;
-    color: var(--muted);
+    color: var(--ink-muted);
   }
 </style>
