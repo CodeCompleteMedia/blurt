@@ -8,6 +8,7 @@
   import Podium from '../components/Podium.svelte'
   import { choiceFor } from '../lib/answers.js'
   import { isMuted, isUnlocked, setMuted, sounds, unlock } from '../lib/sound.js'
+  import { duckMusic, isMusicOn, setMusicOn, syncMusic } from '../lib/music.js'
 
   // Every pair still in the room-code alphabet that a dot-matrix face could
   // blur together, plus one real-looking code. I/O/Q/0/1 are already gone.
@@ -28,10 +29,12 @@
   let live = $state(isUnlocked())
   let muted = $state(isMuted())
   let step = $state(0)
+  let music = $state(isMusicOn())
 
   async function wake() {
     live = await unlock()
     if (live && muted) { muted = false; setMuted(false) }
+    syncMusic(live && !muted)
   }
 
   // What the lobby actually does with a clump: cap the chirps, keep the ladder.
@@ -66,7 +69,9 @@
       <button onclick={() => sounds.step(2)}>podium 2nd</button>
       <button onclick={() => sounds.fanfare()}>fanfare</button>
       <button onclick={countdown}>last 5 seconds</button>
-      <button onclick={() => { muted = !muted; setMuted(muted) }}>{muted ? 'unmute' : 'mute'}</button>
+      <button onclick={() => { muted = !muted; setMuted(muted); syncMusic(!muted) }}>{muted ? 'unmute' : 'mute'}</button>
+      <button onclick={() => { music = !music; setMusicOn(music, true) }}>{music ? 'music: on' : 'music: off'}</button>
+      <button onmousedown={() => duckMusic(true)} onmouseup={() => duckMusic(false)}>hold to duck (a claimed floor)</button>
     {/if}
   </div>
 

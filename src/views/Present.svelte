@@ -20,6 +20,7 @@
   } from '../lib/api.js'
   import { choiceFor } from '../lib/answers.js'
   import { arrivals } from '../lib/arrivals.js'
+  import { duckMusic, isMusicOn, setMusicOn, syncMusic } from '../lib/music.js'
   import { clockBase, remainingSeconds, ticker } from '../lib/clock.js'
   import { calm, rise, slam } from '../lib/motion.js'
   import { isMuted, isUnlocked, setMuted, sounds, unlock } from '../lib/sound.js'
@@ -43,10 +44,15 @@
   // Browsers keep a page silent until someone touches it, and the wall is usually
   // opened by the host screen rather than clicked. So it says when it is silent,
   // and the first click or keypress anywhere wakes it.
-  let audio = $state({ unlocked: isUnlocked(), muted: isMuted() })
+  let audio = $state({ unlocked: isUnlocked(), muted: isMuted(), music: isMusicOn() })
+
+  // The bed plays whenever the wall is allowed to make noise at all. Muting is
+  // the master switch over both, so one click still silences the room.
+  let allowed = $derived(audio.unlocked && !audio.muted)
 
   async function wake() {
     if (!audio.unlocked) audio.unlocked = await unlock()
+    syncMusic(audio.unlocked && !audio.muted)
   }
 
   async function toggleSound(event) {
@@ -58,7 +64,32 @@
       audio.muted = !audio.muted
     }
     setMuted(audio.muted)
+    syncMusic(audio.unlocked && !audio.muted)
   }
+
+  async function toggleMusic(event) {
+    event.stopPropagation()
+    if (!audio.unlocked) {
+      audio.unlocked = await unlock()
+      audio.muted = false
+      setMuted(false)
+    }
+    audio.music = !audio.music
+    setMusicOn(audio.music, audio.unlocked && !audio.muted)
+  }
+
+  // Autoplay is refused until the page has been touched, so the bed starts on
+  // the same gesture everything else waits for — and starts again by itself if
+  // the wall is unmuted later.
+  $effect(() => {
+    syncMusic(allowed)
+  })
+
+  // Someone has the floor and is about to say the answer out loud. That is the
+  // one moment in the game the room has to hear a person, not a soundtrack.
+  $effect(() => {
+    duckMusic(phase === 'blurt_claimed')
+  })
 
   // Cues fire on a *change* the wall watched happen. A wall that is refreshed
   // mid-question must not replay the sting for a claim made a minute ago.
@@ -229,6 +260,14 @@
       aria-label={!audio.unlocked ? 'Turn sound on' : audio.muted ? 'Unmute' : 'Mute'}
     >
       {!audio.unlocked ? 'Sound off · click to turn on' : audio.muted ? 'Muted' : 'Sound on'}
+    </button>
+    <button
+      class="sound"
+      class:off={!audio.music}
+      onclick={toggleMusic}
+      aria-label={audio.music ? 'Turn the music off' : 'Turn the music on'}
+    >
+      {audio.music ? 'Music on' : 'Music off'}
     </button>
     {#if phase === 'final' || closed}
       <!-- The way off the wall, and it appears only once there is nothing left

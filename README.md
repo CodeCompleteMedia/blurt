@@ -190,10 +190,16 @@ scores counting up — so it costs no bytes and needs no library. Under
 `prefers-reduced-motion` everything still *happens*: the podium still reveals
 third, second, first. It just arrives instead of travelling.
 
-**Sound is synthesised, and only the wall makes any.** No audio files means nothing
-to license and nothing for the projector's laptop to fetch over school wifi at the
-moment it matters. Thirty phones chirping is a different product; phones get a buzz
-in the hand instead, where the browser allows it.
+**Sound effects are synthesised, and only the wall makes any.** No audio files for
+the cues means nothing to license and nothing for the projector's laptop to fetch
+at the moment it matters. Thirty phones chirping is a different product; phones
+get a buzz in the hand instead, where the browser allows it.
+
+**The music bed is the one real file** — 1.3MB, looping, under everything the wall
+does. Synthesis is the wrong tool for a soundtrack. It is on by default and has
+its own toggle beside the mute, it is fetched lazily so a wall left silent never
+downloads it, and it ducks to almost nothing while someone has the floor: that is
+the one moment in the game the room needs to hear a person rather than a track.
 
 Browsers keep a page silent until someone touches it, and the wall is usually
 opened by the host screen rather than clicked. So it starts silent and says so:

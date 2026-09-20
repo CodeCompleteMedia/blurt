@@ -1,9 +1,14 @@
 // Every sound the wall makes, synthesised.
 //
-// No audio files: nothing to license, nothing for the projector's laptop to fetch
-// over school wifi at the moment it matters, and the whole kit is a few hundred
-// bytes of arithmetic. Only the wall ever calls this. Thirty phones chirping in a
-// classroom is a different product.
+// No audio files *here*: nothing to license, nothing for the projector's laptop
+// to fetch over school wifi at the moment it matters, and the whole kit is a few
+// hundred bytes of arithmetic. Only the wall ever calls this. Thirty phones
+// chirping in a classroom is a different product.
+//
+// The one exception is the music bed in music.js, which is a real track — that
+// is the one thing synthesis cannot do without grating. It loads lazily, only
+// once a teacher has turned sound on, so a wall that stays silent never fetches
+// it.
 //
 // Browsers will not let a page make noise until someone has touched it, and the
 // wall is usually opened by the host screen rather than clicked on. So sound
