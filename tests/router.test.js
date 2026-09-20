@@ -58,3 +58,13 @@ test('a display is a uuid, and it is not a room code', () => {
 test('a room code still routes to the wall it always did', () => {
   assert.deepEqual(routeFor('/present/PT85U'), { view: 'present', code: 'PT85U' })
 })
+
+test('a scanned QR carries the room, so nobody types a code', () => {
+  assert.deepEqual(routeFor('/j/PT85U'), { view: 'join', code: 'PT85U' })
+  // Phones and QR readers are careless about case; the room is not.
+  assert.deepEqual(routeFor('/j/pt85u'), { view: 'join', code: 'PT85U' })
+  // Anything that is not a code is the ordinary join screen, not a broken one.
+  assert.equal(routeFor('/j/not-a-code').view, 'join')
+  assert.equal(routeFor('/j/not-a-code').code, undefined)
+  assert.equal(routeFor('/j').view, 'join')
+})

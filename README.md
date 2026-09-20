@@ -13,17 +13,28 @@ npm run load                       # 40 phones at once; `npm run load -- 60` for
 npm run check:migrations           # rebuild every migration from an empty Postgres
 ```
 
-## The five surfaces
+## The surfaces
 
 | Path             | Who         | What it shows                                                     |
 | ---------------- | ----------- | ----------------------------------------------------------------- |
 | `/`              | student     | Room code, then name                                               |
+| `/j/CODE`        | student     | The same, with the room already decided — what the lobby QR points at |
 | `/play`          | student     | One blurt button, or A/B/C/D — never the question text             |
 | `/present/CODE`  | the wall    | Question, countdown, distribution, leaderboard. No controls        |
+| `/wall/ID`       | the wall    | A display paired once; the host points rooms at it                 |
 | `/host`          | the teacher | Live roster, the answer key, and every control. Signed in          |
 | `/edit`          | the teacher | Write, reorder, import and illustrate quizzes. Signed in           |
+| `/games`         | the teacher | What the class actually knew, hardest question first. Signed in    |
 
-Open `/host` and it opens a room, then press `P` for the projector window.
+Open `/host` and it opens a room, then press `P` for the projector window. On a
+second monitor it opens on the *other* screen and fills it; on a separate machine
+at the front of the room, pair a display under **Displays** instead and send rooms
+to it.
+
+Students get in two ways, because neither covers a room on its own. **The lobby
+shows a QR beside the code** — scan it and you land on the name field with the
+room already chosen. A QR resolves from roughly ten times its own width, so it is
+for the front half of the class; the code is for everyone else.
 
 | Key | |
 | --- | --- |

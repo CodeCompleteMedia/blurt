@@ -4,9 +4,13 @@
   import { joinGame } from '../lib/api.js'
   import { writeSeat } from '../lib/session.js'
 
-  let code = $state('')
+  // A scanned QR arrives with the room already decided, so the code step is
+  // skipped entirely: the student sees the name field and nothing else.
+  let { code: scanned = null } = $props()
+
+  let code = $state(scanned ?? '')
   let name = $state('')
-  let step = $state('code')
+  let step = $state(scanned ? 'name' : 'code')
   let busy = $state(false)
   // Sent here by /play when the seat stopped existing. Said once, plainly — a
   // student bounced to a blank join form would assume the app broke.

@@ -50,7 +50,7 @@
 {:else if route.view === 'play'}
   <Play />
 {:else}
-  <Join />
+  <Join code={route.code ?? null} />
 {/if}
 
 <style>

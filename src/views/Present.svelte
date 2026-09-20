@@ -9,6 +9,7 @@
 
   import Leaderboard from '../components/Leaderboard.svelte'
   import Podium from '../components/Podium.svelte'
+  import QrCode from '../components/QrCode.svelte'
   import {
     blurter,
     currentQuestion,
@@ -203,6 +204,9 @@
   let limit = $derived((question?.seconds ?? 20) * 1000)
   let phase = $derived(game?.phase ?? null)
   let closed = $derived(Boolean(game?.closed_at))
+  // Same origin the wall is being served from, so this works on a preview
+  // deployment and on a laptop in a classroom without a rebuild.
+  let joinUrl = $derived(code ? `${window.location.origin}/j/${code}` : '')
   let frozenAt = $derived(game?.paused_at ? Date.parse(game.paused_at) : null)
   let counting = $derived(phase === 'recall' || phase === 'question_open')
   let totalVotes = $derived(counts.reduce((sum, n) => sum + n, 0))
@@ -338,8 +342,21 @@
     </section>
   {:else if phase === 'lobby'}
     <section class="lobby">
-      <p class="eyebrow">Room code</p>
-      <h1 class="code-big">{code}</h1>
+      <!-- Two ways in, because neither covers the room on its own. A QR is
+           instant for anyone close enough to resolve it, and unreadable from the
+           back; the code works from anywhere but has to be typed. -->
+      <div class="doors">
+        <div class="way">
+          <p class="eyebrow">Room code</p>
+          <h1 class="code-big">{code}</h1>
+        </div>
+        {#if joinUrl}
+          <div class="way">
+            <p class="eyebrow">Or scan</p>
+            <div class="qr-box"><QrCode text={joinUrl} /></div>
+          </div>
+        {/if}
+      </div>
       {#if players.length}
         <ul class="roster">
           {#each players as player (player.id)}<li>{player.name}</li>{/each}
@@ -565,6 +582,27 @@
     font-family: var(--display);
     font-size: clamp(72px, 15vw, 200px);
     letter-spacing: 0.12em;
+  }
+
+  .doors {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(24px, 5vw, 72px);
+  }
+
+  .way {
+    display: grid;
+    justify-items: center;
+    gap: 12px;
+  }
+
+  /* Big enough to resolve from a few rows back, not so big it crowds the code
+     out. A QR scans from roughly ten times its own width, so this is for the
+     front half of the room and the code is for the rest. */
+  .qr-box {
+    width: clamp(170px, 20vw, 320px);
   }
 
   .waiting {

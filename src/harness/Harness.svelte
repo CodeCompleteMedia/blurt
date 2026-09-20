@@ -6,6 +6,7 @@
   import CountdownRing from '../components/CountdownRing.svelte'
   import Leaderboard from '../components/Leaderboard.svelte'
   import Podium from '../components/Podium.svelte'
+  import QrCode from '../components/QrCode.svelte'
   import { choiceFor } from '../lib/answers.js'
   import { isMuted, isUnlocked, setMuted, sounds, unlock } from '../lib/sound.js'
   import { duckMusic, isMusicOn, setMusicOn, syncMusic } from '../lib/music.js'
@@ -23,6 +24,7 @@
   ]
 
   const started = Date.now() - 12000
+  const joinUrl = `${window.location.origin}/j/PT85U`
 
   // The sound bench. Browsers keep a page silent until it has been clicked, the
   // same reason the wall shows a speaker to wake it.
@@ -80,6 +82,12 @@
     {#each CODES as c}
       <div class="code-big">{c}</div>
     {/each}
+  </div>
+
+  <h2 class="eyebrow">Join QR — what the lobby shows beside the code</h2>
+  <div class="row">
+    <div class="qr-box"><QrCode text={joinUrl} /></div>
+    <code class="qr-url">{joinUrl}</code>
   </div>
 
   <h2 class="eyebrow">Answer tiles</h2>
@@ -178,6 +186,16 @@
     font-family: var(--display);
     font-size: 64px;
     letter-spacing: 0.12em;
+  }
+
+  .qr-box {
+    width: 260px;
+  }
+
+  .qr-url {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 13px;
+    color: var(--neon-cyan);
   }
 
   .tiles {

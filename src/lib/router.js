@@ -25,6 +25,12 @@ export function routeFor(pathname = window.location.pathname) {
   const wall = path.match(/^\/wall(?:\/([0-9a-f-]{36}))?$/i)
   if (wall) return { view: 'wall', wallId: wall[1]?.toLowerCase() ?? null }
 
+  // What a QR on the wall points at. The code is in the path so a student who
+  // scans it never types one — they land on the name field with the room
+  // already decided.
+  const scanned = path.match(new RegExp(`^/j/(${CODE})$`))
+  if (scanned) return { view: 'join', code: scanned[1].toUpperCase() }
+
   const present = path.match(new RegExp(`^/present(?:/(${CODE}))?$`))
   if (present) return { view: 'present', code: present[1]?.toUpperCase() ?? null }
 
