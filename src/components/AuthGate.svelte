@@ -1,13 +1,24 @@
 <script>
   // Everything a teacher does sits behind this. Students never meet it: joining
   // and playing need no account, only a room code.
-  import { auth, linkProblem, resendConfirmation, signIn, signUp } from '../lib/auth.svelte.js'
+  import {
+    auth,
+    linkProblem,
+    requestReset,
+    resendConfirmation,
+    setPassword,
+    signIn,
+    signUp,
+    signOut,
+  } from '../lib/auth.svelte.js'
 
   let { children } = $props()
 
+  // in | up | reset — the third asks only for an address and sends a link.
   let mode = $state('in')
   let email = $state('')
   let password = $state('')
+  let again = $state('')
   let busy = $state(false)
   let problem = $state('')
   let notice = $state('')
@@ -20,7 +31,7 @@
   if (failed) {
     notice =
       failed.code === 'otp_expired'
-        ? 'That confirmation link had already been used or had expired. Your account may be confirmed anyway — try signing in. If it is not, you can ask for a fresh link below.'
+        ? 'That link had already been used or had expired. If it was a confirmation link your account may be confirmed anyway — try signing in. Otherwise ask for a fresh one below.'
         : `That link did not work (${failed.detail ?? failed.code}). Try signing in, or ask for a fresh link.`
   }
 
@@ -44,6 +55,12 @@
     try {
       if (mode === 'in') {
         await signIn(email.trim(), password)
+      } else if (mode === 'reset') {
+        await requestReset(email.trim())
+        // Deliberately the same answer whether or not that address has an
+        // account: this form must not say which teachers exist.
+        notice = 'If that address has an account, a reset link is on its way. Open it on this device.'
+        mode = 'in'
       } else if (await signUp(email.trim(), password)) {
         notice = 'Check your inbox to confirm the address, then sign in.'
         mode = 'in'
@@ -55,10 +72,72 @@
       busy = false
     }
   }
+
+  // The recovery link signed them in; this is the only thing they can do with
+  // that session until the password is set.
+  async function choose(event) {
+    event.preventDefault()
+    if (busy) return
+    if (password !== again) {
+      problem = 'Those two do not match.'
+      return
+    }
+    busy = true
+    problem = ''
+    try {
+      await setPassword(password)
+      password = ''
+      again = ''
+    } catch (error) {
+      problem = error.message
+    } finally {
+      busy = false
+    }
+  }
+
+  async function abandon() {
+    auth.recovering = false
+    password = ''
+    again = ''
+    await signOut()
+  }
 </script>
 
 {#if !auth.ready}
   <main class="surface gate"><p class="muted">…</p></main>
+{:else if auth.recovering}
+  <main class="surface gate">
+    <form class="card" onsubmit={choose}>
+      <h1 class="wordmark">blurt!</h1>
+      <p class="muted">Choose a new password. You are signed in on this device while you do.</p>
+
+      <label for="new-password">New password</label>
+      <input
+        id="new-password"
+        type="password"
+        bind:value={password}
+        autocomplete="new-password"
+        minlength="8"
+        required
+      />
+
+      <label for="new-password-again">New password again</label>
+      <input
+        id="new-password-again"
+        type="password"
+        bind:value={again}
+        autocomplete="new-password"
+        minlength="8"
+        required
+      />
+
+      <button type="submit" disabled={busy}>{busy ? '…' : 'Set password'}</button>
+
+      {#if problem}<p class="problem" role="alert">{problem}</p>{/if}
+
+      <button type="button" class="switch" onclick={abandon}>Not now — sign out</button>
+    </form>
+  </main>
 {:else if auth.user}
   {@render children()}
 {:else}
@@ -66,25 +145,45 @@
     <form class="card" onsubmit={submit}>
       <h1 class="wordmark">blurt!</h1>
       <p class="muted">
-        {mode === 'in' ? 'Sign in to host a room or edit your quizzes.' : 'Create a teacher account.'}
+        {mode === 'in'
+          ? 'Sign in to host a room or edit your quizzes.'
+          : mode === 'reset'
+            ? 'We will email you a link to set a new password.'
+            : 'Create a teacher account.'}
       </p>
 
       <label for="auth-email">Email</label>
       <input id="auth-email" type="email" bind:value={email} autocomplete="email" required />
 
-      <label for="auth-password">Password</label>
-      <input
-        id="auth-password"
-        type="password"
-        bind:value={password}
-        autocomplete={mode === 'in' ? 'current-password' : 'new-password'}
-        minlength="8"
-        required
-      />
+      {#if mode !== 'reset'}
+        <label for="auth-password">Password</label>
+        <input
+          id="auth-password"
+          type="password"
+          bind:value={password}
+          autocomplete={mode === 'in' ? 'current-password' : 'new-password'}
+          minlength="8"
+          required
+        />
+      {/if}
 
       <button type="submit" disabled={busy}>
-        {busy ? '…' : mode === 'in' ? 'Sign in' : 'Create account'}
+        {busy ? '…' : mode === 'in' ? 'Sign in' : mode === 'reset' ? 'Email me a link' : 'Create account'}
       </button>
+
+      {#if mode === 'in'}
+        <button
+          type="button"
+          class="switch"
+          onclick={() => {
+            mode = 'reset'
+            problem = ''
+            notice = ''
+          }}
+        >
+          Forgot your password?
+        </button>
+      {/if}
 
       {#if problem}<p class="problem" role="alert">{problem}</p>{/if}
       {#if unconfirmed && email.trim()}
