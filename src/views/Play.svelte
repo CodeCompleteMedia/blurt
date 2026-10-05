@@ -472,7 +472,9 @@
     width: min(78vw, 300px);
     aspect-ratio: 1;
     border-radius: 50%;
-    background: radial-gradient(circle at 38% 30%, #ff7cbf 0 12%, var(--neon-pink) 40%);
+    /* Flat: no highlight, no outer ring. The deep edge underneath is what makes
+       it read as a button you press, and it is what moves when you do. */
+    background: var(--neon-pink);
     color: var(--on-pink);
     font-family: var(--display);
     font-size: clamp(40px, 12vw, 56px);
@@ -480,8 +482,6 @@
     letter-spacing: 0.01em;
     box-shadow:
       0 10px 0 var(--neon-pink-deep),
-      0 0 0 6px var(--stage),
-      0 0 0 9px var(--neon-pink),
       0 0 40px 6px #ff2e9780;
     transition:
       transform 0.08s ease,
@@ -492,17 +492,13 @@
     transform: translateY(8px);
     box-shadow:
       0 2px 0 var(--neon-pink-deep),
-      0 0 0 6px var(--stage),
-      0 0 0 9px var(--neon-pink),
       0 0 64px 12px #ff2e97a6;
   }
 
   .blurt:disabled {
     background: var(--stage-high);
     color: var(--ink-muted);
-    box-shadow:
-      0 0 0 6px var(--stage),
-      0 0 0 9px var(--line-strong);
+    box-shadow: none;
     cursor: default;
   }
 
