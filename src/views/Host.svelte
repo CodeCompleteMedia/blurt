@@ -93,7 +93,11 @@
   let limit = $derived(
     phase === 'recall' ? (question?.recallSeconds ?? 8) * 1000 : (question?.seconds ?? 20) * 1000,
   )
-  let left = $derived(questionBase ? remainingSeconds(questionBase, limit, now) : null)
+  // Held at the moment of the pause, as the wall's ring is. Resuming moves the
+  // question's start forward by however long it sat, so counting from `now`
+  // again afterwards picks up exactly where it stopped.
+  let frozenAt = $derived(game?.paused_at ? Date.parse(game.paused_at) : null)
+  let left = $derived(questionBase ? remainingSeconds(questionBase, limit, frozenAt ?? now) : null)
   let presentUrl = $derived(host ? `/present/${host.code}` : '')
   let answered = $derived(roster.filter((p) => p.answeredCurrent).length)
   let clockRunning = $derived(phase === 'recall' || phase === 'question_open')
