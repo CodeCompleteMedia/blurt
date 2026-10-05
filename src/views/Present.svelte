@@ -395,7 +395,7 @@
       <h2 class="big-q" in:rise={{ y: 26 }}>{question.text}</h2>
       <div class="recall-foot">
         <p class="prompt">
-          {#if frozenAt}<strong>Paused</strong>{:else}Know it? <strong>Blurt.</strong>{/if}
+          {#if frozenAt}<strong>Paused</strong>{:else}Know it? <strong>BLURT</strong> it!{/if}
         </p>
         <CountdownRing startedAt={questionBase} {limit} size={96} {frozenAt} />
       </div>
