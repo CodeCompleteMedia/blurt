@@ -153,9 +153,8 @@
     if (phase === 'blurt_claimed') {
       return { text: `${floor?.name ?? 'Someone'} has the floor.`, key: 'Y / N', does: 'judges it.' }
     }
-    if (phase === 'locked') {
-      return { text: 'Time. The answer goes up in a moment.', key: 'Space', does: 'shows it now.' }
-    }
+    // A 1.2s beat: too short to read a key hint before it is gone.
+    if (phase === 'locked') return { text: 'Time. The answer goes up in a moment.' }
     if (phase === 'results') {
       const auto = game.auto_next_seconds ?? 0
       if (auto > 0 && resultsSince != null) {
