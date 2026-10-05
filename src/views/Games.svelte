@@ -5,6 +5,7 @@
   // the room bombed without opening a spreadsheet. So questions come back
   // hardest-first from the database and the worst of them are stated in a line of
   // prose at the top — the table is for afterwards, when you want the detail.
+  import { SvelteSet } from 'svelte/reactivity'
   import { rise } from '../lib/motion.js'
   import { downloadCsv, reportCsv } from '../lib/csv-export.js'
   import { deleteGame, listGames, loadReport } from '../lib/reports.js'
@@ -17,6 +18,13 @@
   let report = $state(null)
   let confirming = $state(null)
   let tab = $state('questions')
+  // Ticked games, for clearing out a term's worth at once.
+  const selected = new SvelteSet()
+  let deleting = $state(false)
+  let notice = $state('')
+
+  let allSelected = $derived(games.length > 0 && games.every((g) => selected.has(g.id)))
+  let someSelected = $derived(selected.size > 0 && !allSelected)
 
   const when = (iso) =>
     new Date(iso).toLocaleString(undefined, {
@@ -40,18 +48,48 @@
     return `They scattered; “${q.commonWrong}” was the most common miss.`
   }
 
-  async function remove(id) {
-    if (confirming !== id) {
-      confirming = id
-      setTimeout(() => confirming === id && (confirming = null), 3000)
+  // A delete is armed by the first press and goes through on a second within
+  // three seconds. One timer, reset on every press, so an older one cannot
+  // disarm a newer press early.
+  let disarm
+  function arm(what) {
+    confirming = what
+    clearTimeout(disarm)
+    disarm = setTimeout(() => (confirming = null), 3000)
+  }
+
+  function toggleAll() {
+    if (allSelected) selected.clear()
+    else for (const g of games) selected.add(g.id)
+  }
+
+  // One game per call, since that is the only shape the database will delete —
+  // and a failure partway leaves the rest deleted and the failures still ticked,
+  // rather than nothing done at all.
+  async function removeSelected() {
+    if (confirming !== 'selected') {
+      arm('selected')
       return
     }
     confirming = null
+    deleting = true
+    notice = ''
+    const ids = [...selected]
+    const results = await Promise.allSettled(ids.map((id) => deleteGame(id)))
+    ids.forEach((id, i) => results[i].status === 'fulfilled' && selected.delete(id))
+    const failed = results.filter((r) => r.status === 'rejected')
+    if (failed.length) {
+      notice = `${failed.length} of ${ids.length} could not be deleted: ${failed[0].reason.message}`
+    }
     try {
-      await deleteGame(id)
       games = await listGames()
+      // Anything that vanished some other way should not stay counted.
+      const left = new Set(games.map((g) => g.id))
+      for (const id of selected) if (!left.has(id)) selected.delete(id)
     } catch (error) {
       problem = error.message
+    } finally {
+      deleting = false
     }
   }
 
@@ -89,9 +127,44 @@
     </header>
 
     {#if games.length}
+      <div class="bulk">
+        <label class="pick">
+          <input
+            type="checkbox"
+            checked={allSelected}
+            indeterminate={someSelected}
+            onchange={toggleAll}
+          />
+          Select all
+        </label>
+        {#if selected.size}
+          <span class="muted">{selected.size} selected</span>
+          <button
+            class="ghost"
+            class:armed={confirming === 'selected'}
+            disabled={deleting}
+            onclick={removeSelected}
+          >
+            {deleting
+              ? 'Deleting…'
+              : confirming === 'selected'
+                ? `Delete ${selected.size} for good?`
+                : `Delete ${selected.size === games.length ? 'all' : selected.size}`}
+          </button>
+        {/if}
+      </div>
+
+      {#if notice}<p class="problem" role="alert">{notice}</p>{/if}
+
       <ul class="list">
         {#each games as g (g.id)}
-          <li>
+          <li class:picked={selected.has(g.id)}>
+            <input
+              type="checkbox"
+              aria-label="Select {g.quizTitle}, {when(g.playedAt)}"
+              checked={selected.has(g.id)}
+              onchange={(e) => (e.currentTarget.checked ? selected.add(g.id) : selected.delete(g.id))}
+            />
             <a class="title" href="/games/{g.id}">
               <strong>{g.quizTitle}</strong>
               <span class="muted">
@@ -102,9 +175,6 @@
                 {#if g.topName} · {g.topName} won{/if}
               </span>
             </a>
-            <button class="link" class:danger={confirming === g.id} onclick={() => remove(g.id)}>
-              {confirming === g.id ? 'Delete for good?' : 'Delete'}
-            </button>
           </li>
         {/each}
       </ul>
@@ -295,25 +365,47 @@
     background: var(--stage-raised);
   }
 
+  .list li.picked {
+    border-color: var(--line-strong);
+  }
+
+  .bulk {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    align-items: center;
+    min-height: 38px;
+    padding: 0 18px;
+  }
+
+  .pick {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--neon-pink);
+    cursor: pointer;
+  }
+
+  .ghost.armed {
+    border-color: var(--wrong);
+    color: var(--wrong);
+    font-weight: 600;
+  }
+
   .title {
     flex: 1;
     display: grid;
     gap: 2px;
     color: inherit;
     text-decoration: none;
-  }
-
-  .link {
-    padding: 4px 8px;
-    font-size: 13px;
-    color: var(--ink-muted);
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-
-  .link.danger {
-    color: var(--wrong);
-    font-weight: 600;
   }
 
   .empty {
