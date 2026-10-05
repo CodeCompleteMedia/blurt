@@ -1,17 +1,7 @@
 <script>
-  import { configured } from './lib/supabase.js'
+  import { configured } from './lib/config.js'
   import { routeFor } from './lib/router.js'
   import { applyTheme, showTheme } from './lib/theme.svelte.js'
-  import AuthGate from './components/AuthGate.svelte'
-  import TeacherShell from './components/TeacherShell.svelte'
-  import Edit from './views/Edit.svelte'
-  import Games from './views/Games.svelte'
-  import Host from './views/Host.svelte'
-  import Join from './views/Join.svelte'
-  import Landing from './views/Landing.svelte'
-  import Play from './views/Play.svelte'
-  import Present from './views/Present.svelte'
-  import Wall from './views/Wall.svelte'
 
   const route = routeFor()
 
@@ -21,9 +11,38 @@
   // know which room they are in.
   if (['home', 'host', 'games', 'edit'].includes(route.view)) applyTheme()
   else showTheme('light')
+
+  // Each surface is its own download. A student's phone on school Wi-Fi fetches
+  // the join form and the buzzer, not the quiz editor, the reports or the
+  // landing page; a first-time visitor to / fetches the landing page and not
+  // the database client.
+  const views = {
+    home: () => import('./views/Landing.svelte'),
+    host: () => import('./views/Teacher.svelte'),
+    games: () => import('./views/Teacher.svelte'),
+    edit: () => import('./views/Teacher.svelte'),
+    present: () => import('./views/Present.svelte'),
+    wall: () => import('./views/Wall.svelte'),
+    play: () => import('./views/Play.svelte'),
+    join: () => import('./views/Join.svelte'),
+  }
+
+  const props = {
+    home: {},
+    host: { route },
+    games: { route },
+    edit: { route },
+    present: { code: route.code },
+    wall: { wallId: route.wallId },
+    play: {},
+    join: { code: route.code ?? null },
+  }
+
+  const view = route.view in views ? route.view : 'join'
+  const loading = views[view]()
 </script>
 
-{#if !configured}
+{#if !configured && view !== 'home'}
   <main class="setup">
     <div>
       <h1 class="wordmark">blurt!</h1>
@@ -34,34 +53,21 @@
       <p class="fix">Run <code>vercel env pull .env.local</code>, then restart the dev server.</p>
     </div>
   </main>
-{:else if route.view === 'host'}
-  <AuthGate>
-    <TeacherShell current="host">
-      <Host />
-    </TeacherShell>
-  </AuthGate>
-{:else if route.view === 'games'}
-  <AuthGate>
-    <TeacherShell current="games">
-      <Games gameId={route.gameId} />
-    </TeacherShell>
-  </AuthGate>
-{:else if route.view === 'edit'}
-  <AuthGate>
-    <TeacherShell current="edit">
-      <Edit quizId={route.quizId} />
-    </TeacherShell>
-  </AuthGate>
-{:else if route.view === 'present'}
-  <Present code={route.code} />
-{:else if route.view === 'wall'}
-  <Wall wallId={route.wallId} />
-{:else if route.view === 'play'}
-  <Play />
-{:else if route.view === 'home'}
-  <Landing />
 {:else}
-  <Join code={route.code ?? null} />
+  {#await loading then module}
+    {@const View = module.default}
+    <View {...props[view]} />
+  {:catch}
+    <!-- The one failure a split app adds: its page arriving in pieces over a
+         bad connection. Say so, and offer the obvious fix. -->
+    <main class="setup">
+      <div>
+        <h1 class="wordmark">blurt!</h1>
+        <p>This page didn't finish loading. The connection may have dropped.</p>
+        <p class="fix"><button onclick={() => window.location.reload()}>Try again</button></p>
+      </div>
+    </main>
+  {/await}
 {/if}
 
 <style>
@@ -93,6 +99,14 @@
 
   .fix {
     color: var(--ink);
+  }
+
+  .fix button {
+    padding: 10px 18px;
+    border-radius: 8px;
+    background: var(--neon-pink);
+    color: var(--on-pink);
+    font-weight: 600;
   }
 
   code {

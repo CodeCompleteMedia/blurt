@@ -3,11 +3,12 @@
 // in the database, not this file. See supabase/migrations/0002_functions.sql.
 
 import { createClient } from '@supabase/supabase-js'
+import { configured } from './config.js'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export const configured = Boolean(url && key)
+export { configured }
 
 export const db = configured
   ? createClient(url, key, {
