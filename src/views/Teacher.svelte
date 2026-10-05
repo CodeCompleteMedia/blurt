@@ -1,7 +1,7 @@
 <script>
-  // The teacher's three places, behind sign-in and inside the shell. One
-  // download for all three: a teacher moves between them all lesson, and none
-  // of it is anything a student's phone should fetch.
+  // The teacher's places, behind sign-in and inside the shell. One download for
+  // the three a teacher uses all lesson, and none of it is anything a student's
+  // phone should fetch. The admin page loads separately: almost nobody sees it.
   import AuthGate from '../components/AuthGate.svelte'
   import TeacherShell from '../components/TeacherShell.svelte'
   import Edit from './Edit.svelte'
@@ -17,6 +17,10 @@
       <Host />
     {:else if route.view === 'games'}
       <Games gameId={route.gameId} />
+    {:else if route.view === 'admin'}
+      {#await import('./Admin.svelte') then module}
+        <module.default />
+      {/await}
     {:else}
       <Edit quizId={route.quizId} />
     {/if}

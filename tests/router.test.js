@@ -8,6 +8,7 @@ test('each surface has a path', () => {
   assert.deepEqual(routeFor('/join'), { view: 'join' })
   assert.deepEqual(routeFor('/play'), { view: 'play' })
   assert.deepEqual(routeFor('/host'), { view: 'host' })
+  assert.deepEqual(routeFor('/admin'), { view: 'admin' })
 })
 
 test('the wall carries its room code in the path', () => {

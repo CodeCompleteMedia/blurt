@@ -18,6 +18,9 @@ export function routeFor(pathname = window.location.pathname) {
   if (path === '/') return { view: 'home' }
   if (path === '/join') return { view: 'join' }
   if (path === '/play') return { view: 'play' }
+  // The platform admin's page. The route is public; what it shows is not —
+  // every read behind it is refused by the database to anyone off the list.
+  if (path === '/admin') return { view: 'admin' }
   if (path === '/host') return { view: 'host' }
 
   const games = path.match(/^\/games(?:\/([0-9a-f-]{36}))?$/i)

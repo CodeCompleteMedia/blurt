@@ -5,6 +5,7 @@
   // The wall and the phone deliberately get none of this. A projector with a menu
   // bar is a projector with something to fiddle with, and a student's screen has
   // exactly one job at a time.
+  import { amAdmin } from '../lib/admin.js'
   import { auth, setPassword, signOut } from '../lib/auth.svelte.js'
   import { readHost } from '../lib/session.js'
   import { setTheme, theme } from '../lib/theme.svelte.js'
@@ -15,6 +16,17 @@
   // advancing itself, because the host screen is what closes questions on time.
   // So a live room is never out of sight: it rides along in the bar.
   const room = current === 'host' ? null : readHost()
+
+  // Only admins see the link. Hiding it is courtesy, not security: the page's
+  // every read is refused by the database to anyone else.
+  let admin = $state(false)
+  // The id, not the user object: a token refresh hands back a new object, and
+  // this should ask once per person, not once per refresh.
+  let userId = $derived(auth.user?.id ?? null)
+  $effect(() => {
+    if (!userId) return
+    amAdmin().then((yes) => (admin = yes))
+  })
 
   async function leave() {
     await signOut()
@@ -90,6 +102,7 @@
       </a>
       <a href="/edit" aria-current={current === 'edit' ? 'page' : undefined}>Quizzes</a>
       <a href="/games" aria-current={current === 'games' ? 'page' : undefined}>Reports</a>
+      {#if admin}<a href="/admin" aria-current={current === 'admin' ? 'page' : undefined}>Admin</a>{/if}
     </div>
 
     <div class="who" bind:this={menu}>

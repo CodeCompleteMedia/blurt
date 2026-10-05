@@ -9,7 +9,7 @@
   // rather than switching under the teacher. The wall and the phones start in
   // the default and follow the room's copy of the teacher's choice once they
   // know which room they are in.
-  if (['home', 'host', 'games', 'edit'].includes(route.view)) applyTheme()
+  if (['home', 'host', 'games', 'edit', 'admin'].includes(route.view)) applyTheme()
   else showTheme('light')
 
   // Each surface is its own download. A student's phone on school Wi-Fi fetches
@@ -21,6 +21,7 @@
     host: () => import('./views/Teacher.svelte'),
     games: () => import('./views/Teacher.svelte'),
     edit: () => import('./views/Teacher.svelte'),
+    admin: () => import('./views/Teacher.svelte'),
     present: () => import('./views/Present.svelte'),
     wall: () => import('./views/Wall.svelte'),
     play: () => import('./views/Play.svelte'),
@@ -32,6 +33,7 @@
     host: { route },
     games: { route },
     edit: { route },
+    admin: { route },
     present: { code: route.code },
     wall: { wallId: route.wallId },
     play: {},

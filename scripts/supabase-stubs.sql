@@ -21,7 +21,21 @@ create publication supabase_realtime;
 -- a test can impersonate a teacher with:
 --   select set_config('request.jwt.claims', '{"sub":"<uuid>"}', false);
 create schema auth;
-create table auth.users (id uuid primary key default gen_random_uuid(), email text);
+-- The columns the admin functions read and write, typed as Supabase has them.
+-- banned_until is what GoTrue checks before issuing or refreshing a token.
+create table auth.users (
+  id uuid primary key default gen_random_uuid(),
+  email text,
+  created_at timestamptz default now(),
+  email_confirmed_at timestamptz,
+  last_sign_in_at timestamptz,
+  banned_until timestamptz
+);
+-- A signed-in device. Real refresh tokens hang off this and go with it.
+create table auth.sessions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade
+);
 -- Signed out is null, not an error. The old one cast '' to jsonb and threw, which
 -- made "nobody is signed in" indistinguishable from "the function is broken" and
 -- quietly turned some checks into tests of the wrong failure.
