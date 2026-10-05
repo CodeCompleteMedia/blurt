@@ -26,6 +26,7 @@
   import { calm, rise, slam } from '../lib/motion.js'
   import { isMuted, isUnlocked, setMuted, sounds, unlock } from '../lib/sound.js'
   import { showTheme } from '../lib/theme.svelte.js'
+  import doodles from '../assets/images/doodles.webp'
 
   let { code = null } = $props()
 
@@ -294,7 +295,7 @@
 
 <svelte:window onclick={wake} onkeydown={wake} />
 
-<main class="stage surface">
+<main class="stage surface" style:--doodles="url({doodles})">
   <header>
     <span class="wordmark brand">blurt!</span>
     {#if game && game.question_index >= 0 && phase !== 'final'}
@@ -507,6 +508,33 @@
     grid-template-rows: auto 1fr;
     gap: 24px;
     height: 100%;
+    /* Its own stacking context, so the doodles sit behind the board but above
+       the page background. */
+    position: relative;
+    isolation: isolate;
+  }
+
+  /* The doodle wallpaper: pencil on paper, tiled behind the whole board. Kept
+     faint on purpose — it is texture, and the question has to read over it from
+     the back of the room. In the dark it is inverted to pale lines and screened,
+     so its paper vanishes into the stage; in daylight it is multiplied, so the
+     pencil darkens the page and the paper adds nothing. */
+  .stage::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: var(--doodles) center / 960px auto repeat;
+    filter: invert(1);
+    mix-blend-mode: screen;
+    opacity: 0.1;
+    pointer-events: none;
+  }
+
+  :global([data-theme='light']) .stage::before {
+    filter: none;
+    mix-blend-mode: multiply;
+    opacity: 0.1;
   }
 
   header {
