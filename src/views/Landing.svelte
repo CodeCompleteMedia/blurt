@@ -63,6 +63,10 @@
     playing = false
     show(n)
   }
+
+  // -------------------------------------------------------------- pricing ---
+  // Yearly is $72, which is $6 a month: a quarter off the monthly $8.
+  let yearly = $state(false)
 </script>
 
 <svelte:head>
@@ -115,6 +119,7 @@
           {/if}
         </svg>
       </button>
+      <a class="signin" href="#pricing">Pricing</a>
       <a class="signin" href="/host">Teacher sign in</a>
     </div>
   </header>
@@ -275,6 +280,56 @@
         A first name and their answers. Students never create an account, give an email or install
         anything, and they can't read each other's answers. You can delete a game, and every answer in
         it, whenever you like.
+      </p>
+    </section>
+
+    <section id="pricing" class="pricing" aria-labelledby="pricing-title">
+      <div class="pricing-head">
+        <h2 id="pricing-title">Free to start. One plan when you want more.</h2>
+        <div class="period" role="group" aria-label="Billing period">
+          <button aria-pressed={!yearly} onclick={() => (yearly = false)}>Monthly</button>
+          <button aria-pressed={yearly} onclick={() => (yearly = true)}>Yearly <span class="save">save 25%</span></button>
+        </div>
+      </div>
+
+      <div class="plans">
+        <article class="plan" aria-labelledby="plan-free">
+          <h3 id="plan-free">Free</h3>
+          <p class="price"><span class="amount">$0</span></p>
+          <p class="for">For trying blurt with a class or two.</p>
+          <ul>
+            <li>3 quizzes</li>
+            <li>5 rooms a month</li>
+            <li>Up to 15 students in a room</li>
+            <li>Reports for the last 30 days</li>
+            <li>1 paired display</li>
+          </ul>
+          <a class="plan-cta quiet-cta" href="/host">Start free</a>
+        </article>
+
+        <article class="plan paid" aria-labelledby="plan-teacher">
+          <h3 id="plan-teacher">Teacher</h3>
+          <p class="price">
+            <span class="amount">{yearly ? '$72' : '$8'}</span>
+            <span class="per">{yearly ? 'a year' : 'a month'}</span>
+          </p>
+          <p class="for">
+            {yearly ? 'Works out to $6 a month, billed once a year.' : 'Billed monthly. Cancel any time.'}
+          </p>
+          <ul>
+            <li>Unlimited quizzes</li>
+            <li>Unlimited rooms</li>
+            <li>Up to 60 students in a room</li>
+            <li>Every report, kept for good</li>
+            <li>Up to 10 paired displays</li>
+            <li>Export reports as a spreadsheet</li>
+          </ul>
+          <a class="plan-cta" href="/host">Start free, upgrade any time</a>
+        </article>
+      </div>
+
+      <p class="pricing-note">
+        Students never pay and never need an account. Prices in US dollars; tax may apply.
       </p>
     </section>
 
@@ -1014,6 +1069,175 @@
     max-width: 58ch;
     font-size: 19px;
     line-height: 1.6;
+  }
+
+  /* ---------------------------------------------------------- pricing --- */
+  .pricing {
+    padding-block: clamp(48px, 8vw, 104px);
+    border-top: 1px solid var(--line);
+  }
+
+  .pricing-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 20px 32px;
+    margin-bottom: clamp(28px, 4vw, 48px);
+  }
+
+  .pricing-head h2 {
+    max-width: 16ch;
+  }
+
+  .period {
+    display: inline-grid;
+    grid-auto-flow: column;
+    padding: 4px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-pill);
+  }
+
+  .period button {
+    padding: 8px 16px;
+    border-radius: var(--radius-pill);
+    color: var(--ink-muted);
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .period button[aria-pressed='true'] {
+    background: var(--stage-high);
+    color: var(--ink);
+  }
+
+  .save {
+    margin-left: 4px;
+    color: var(--neon-pink);
+    font-weight: 700;
+  }
+
+  .plans {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
+    gap: clamp(16px, 3vw, 32px);
+    align-items: stretch;
+  }
+
+  .plan {
+    display: grid;
+    grid-template-rows: auto auto auto 1fr auto;
+    gap: 12px;
+    padding: clamp(24px, 3vw, 36px);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-lg);
+  }
+
+  /* The paid plan carries the brand colour; the free one stays quiet. */
+  .plan.paid {
+    border: 2px solid var(--neon-pink);
+    background: var(--stage-raised);
+    box-shadow: var(--glow-pink);
+  }
+
+  .plan h3 {
+    font-size: clamp(22px, 2.4vw, 30px);
+  }
+
+  .paid h3 {
+    color: var(--neon-pink);
+  }
+
+  .price {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin: 4px 0 0;
+  }
+
+  .amount {
+    font-family: var(--display);
+    font-size: clamp(44px, 5.5vw, 68px);
+    line-height: 1;
+  }
+
+  .per {
+    color: var(--ink-muted);
+    font-size: 17px;
+  }
+
+  .for {
+    margin: 0;
+    color: var(--ink-muted);
+    font-size: 16px;
+    min-height: 1.5em;
+  }
+
+  .plan ul {
+    display: grid;
+    gap: 10px;
+    align-content: start;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 17px;
+  }
+
+  .plan li {
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    gap: 10px;
+    align-items: baseline;
+  }
+
+  .plan li::before {
+    content: '✓';
+    color: var(--ink-muted);
+    font-weight: 700;
+  }
+
+  .paid li::before {
+    color: var(--neon-pink);
+  }
+
+  .plan-cta {
+    justify-self: start;
+    margin-top: 16px;
+    padding: 13px 22px 11px;
+    border-radius: var(--radius-md);
+    background: var(--neon-pink);
+    color: var(--on-pink);
+    box-shadow: 0 5px 0 var(--neon-pink-deep);
+    font-family: var(--display);
+    font-size: 15px;
+    letter-spacing: 0.03em;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+
+  .plan-cta.quiet-cta {
+    background: none;
+    color: var(--ink);
+    box-shadow: none;
+    border: 1px solid var(--line-strong);
+  }
+
+  .pricing-note {
+    margin: 20px 0 0;
+    color: var(--ink-muted);
+    font-size: 14px;
+  }
+
+  @media (max-width: 760px) {
+    .plans {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* On a phone the paid plan leads: it's the one with something to explain. */
+    .plan.paid {
+      order: -1;
+    }
   }
 
   /* ------------------------------------------------------------- last --- */
