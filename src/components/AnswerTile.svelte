@@ -78,15 +78,28 @@
        and the tile does not grow a line just because the letter is wide. The
        shape this replaced was a flat 34px even on a projector; the letter is
        the answer's name now, so it scales with the wall instead. */
-    width: clamp(28px, 2.6vw, 48px);
+    /* Held in a ring, so "A" reads as a label and not as the first letter of
+       the answer beside it. */
+    display: grid;
+    place-items: center;
+    width: clamp(34px, 3.2vw, 58px);
+    aspect-ratio: 1;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.16);
     font-family: var(--display);
-    font-size: clamp(20px, 2vw, 38px);
+    font-size: clamp(16px, 1.6vw, 28px);
     line-height: 1;
     text-align: center;
   }
 
+  /* Alone on a phone's tile there is nothing to separate it from, so no ring. */
   .letter.big {
     width: auto;
+    aspect-ratio: auto;
+    border: 0;
+    border-radius: 0;
+    background: none;
     font-size: clamp(44px, 9vw, 64px);
   }
 
