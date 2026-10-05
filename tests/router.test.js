@@ -4,7 +4,8 @@ import { test } from 'node:test'
 import { routeFor } from '../src/lib/router.js'
 
 test('each surface has a path', () => {
-  assert.deepEqual(routeFor('/'), { view: 'join' })
+  assert.deepEqual(routeFor('/'), { view: 'home' })
+  assert.deepEqual(routeFor('/join'), { view: 'join' })
   assert.deepEqual(routeFor('/play'), { view: 'play' })
   assert.deepEqual(routeFor('/host'), { view: 'host' })
 })
@@ -19,7 +20,7 @@ test('trailing slashes and unknown paths fall back to join', () => {
   assert.deepEqual(routeFor('/host/'), { view: 'host' })
   assert.deepEqual(routeFor('/present/VGP2G/'), { view: 'present', code: 'VGP2G' })
   assert.deepEqual(routeFor('/nope'), { view: 'join' })
-  assert.deepEqual(routeFor(''), { view: 'join' })
+  assert.deepEqual(routeFor(''), { view: 'home' })
 })
 
 test('the editor lists quizzes, or opens one by id', () => {

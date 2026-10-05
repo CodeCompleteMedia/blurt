@@ -8,6 +8,7 @@
   import Games from './views/Games.svelte'
   import Host from './views/Host.svelte'
   import Join from './views/Join.svelte'
+  import Landing from './views/Landing.svelte'
   import Play from './views/Play.svelte'
   import Present from './views/Present.svelte'
   import Wall from './views/Wall.svelte'
@@ -17,7 +18,7 @@
   // Before anything mounts, so the sign-in card is drawn in the chosen light
   // rather than switching under the teacher. The wall and the phones follow the
   // room's copy of this choice instead, once they know which room they are in.
-  if (['host', 'games', 'edit'].includes(route.view)) applyTheme()
+  if (['home', 'host', 'games', 'edit'].includes(route.view)) applyTheme()
 </script>
 
 {#if !configured}
@@ -55,6 +56,8 @@
   <Wall wallId={route.wallId} />
 {:else if route.view === 'play'}
   <Play />
+{:else if route.view === 'home'}
+  <Landing />
 {:else}
   <Join code={route.code ?? null} />
 {/if}

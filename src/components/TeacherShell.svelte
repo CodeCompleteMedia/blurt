@@ -114,7 +114,7 @@
 
           <div class="group">
             <button class="item" onclick={changePassword}>Change password</button>
-            <a class="item" href="/" target="_blank" rel="noopener">Student join page ↗</a>
+            <a class="item" href="/join" target="_blank" rel="noopener">Student join page ↗</a>
           </div>
 
           <div class="group theme" role="group" aria-labelledby="theme-label">

@@ -214,7 +214,7 @@
         {mode === 'in' ? 'First time? Create an account' : 'Have an account? Sign in'}
       </button>
 
-      <p class="muted small">Students don't need any of this — they join at <a href="/">the front door</a>.</p>
+      <p class="muted small">Students don't need any of this — they join at <a href="/join">the front door</a>.</p>
     </form>
   </main>
 {/if}

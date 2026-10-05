@@ -11,6 +11,12 @@ const CODE = '[A-Za-z0-9]{4,8}'
 export function routeFor(pathname = window.location.pathname) {
   const path = pathname.replace(/\/+$/, '') || '/'
 
+  // The front page is for teachers deciding whether to try blurt, with a
+  // room-code box at the very top for a student who typed the bare domain.
+  // /join is the plain form, where the app itself sends a student who needs to
+  // (re)join — a bounced seat should not land on a marketing page.
+  if (path === '/') return { view: 'home' }
+  if (path === '/join') return { view: 'join' }
   if (path === '/play') return { view: 'play' }
   if (path === '/host') return { view: 'host' }
 

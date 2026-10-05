@@ -90,7 +90,7 @@
   async function boot() {
     const saved = readSeat()
     if (!saved?.code) {
-      window.location.assign('/')
+      window.location.assign('/join')
       return
     }
     seat = saved
@@ -98,7 +98,7 @@
       game = await fetchGame(saved.code)
       if (!game) {
         clearSeat()
-        window.location.assign('/')
+        window.location.assign('/join')
         return
       }
       players = await fetchPlayers(saved.code)
@@ -169,7 +169,7 @@
 
   function leave() {
     clearSeat()
-    window.location.assign('/')
+    window.location.assign('/join')
   }
 
   $effect(() => {
@@ -203,7 +203,7 @@
       } catch (error) {
         if (/not in this game/i.test(error.message)) {
           clearSeat()
-          window.location.assign('/?removed=1')
+          window.location.assign('/join?removed=1')
         }
       }
     })()
@@ -214,7 +214,7 @@
   $effect(() => {
     if (!game?.closed_at) return
     clearSeat()
-    window.location.assign('/')
+    window.location.assign('/join')
   })
 
   $effect(() => {
