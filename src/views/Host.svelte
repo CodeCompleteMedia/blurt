@@ -72,7 +72,6 @@
     ['R', 'Close this room and start a new one'],
     ['?', 'This list'],
   ]
-  let autoNextKey = ''
 
   const RECALL_CHOICES = [5, 8, 12, 15, 20, 30]
   const AUTO_NEXT_CHOICES = [0, 3, 5, 8, 12]
@@ -98,6 +97,87 @@
   let presentUrl = $derived(host ? `/present/${host.code}` : '')
   let answered = $derived(roster.filter((p) => p.answeredCurrent).length)
   let clockRunning = $derived(phase === 'recall' || phase === 'question_open')
+
+  // When the results went up, for the move-on-by-itself countdown. Keyed on a
+  // number, so a roster refresh never restarts it.
+  let resultsKey = $derived(phase === 'results' ? (game?.question_index ?? null) : null)
+  let resultsSince = $state(null)
+  $effect(() => {
+    resultsSince = resultsKey == null ? null : Date.now()
+  })
+
+  // The quiet line at the bottom: what Space does right now, and how long until
+  // the room moves on without it. Hidden for the rest of the tab's life once
+  // dismissed — sessionStorage, so a fresh session brings it back.
+  const HELPER_KEY = 'blurt.helper-hidden'
+  let helperHidden = $state(
+    (() => {
+      try {
+        return sessionStorage.getItem(HELPER_KEY) === '1'
+      } catch {
+        return false
+      }
+    })(),
+  )
+
+  function hideHelper() {
+    helperHidden = true
+    try {
+      sessionStorage.setItem(HELPER_KEY, '1')
+    } catch {
+      // Hidden for this page load, at least.
+    }
+  }
+
+  let helper = $derived.by(() => {
+    if (!game || !host) return null
+    const held = !!game.paused_at
+    const clock = left == null ? null : { left, total: limit / 1000 + (game.extra_seconds ?? 0) }
+
+    if (phase === 'lobby') {
+      return roster.length
+        ? { text: `${roster.length} in.`, key: 'Space', does: 'starts the first question.' }
+        : { text: 'Waiting for students to join.' }
+    }
+    if ((phase === 'recall' || phase === 'question_open') && held) {
+      return { text: 'Paused.', key: 'H', does: 'starts the clock again.', clock, held }
+    }
+    if (phase === 'recall') {
+      return { text: 'Choices are hidden.', key: 'Space', does: 'shows them now.', clock }
+    }
+    if (phase === 'question_open') {
+      return allIn
+        ? { text: 'Everyone is in.', key: 'Space', does: 'reveals the answer.', clock }
+        : { text: 'Choices are up.', key: 'Space', does: 'closes it early.', clock }
+    }
+    if (phase === 'blurt_claimed') {
+      return { text: `${floor?.name ?? 'Someone'} has the floor.`, key: 'Y / N', does: 'judges it.' }
+    }
+    if (phase === 'locked') {
+      return { text: 'Time. The answer goes up in a moment.', key: 'Space', does: 'shows it now.' }
+    }
+    if (phase === 'results') {
+      const auto = game.auto_next_seconds ?? 0
+      if (auto > 0 && resultsSince != null) {
+        // `now` stops while the tab is hidden; the heartbeat does not.
+        const elapsed = (Math.max(now, beat) - resultsSince) / 1000
+        const remaining = Math.min(auto, Math.max(0, Math.ceil(auto - elapsed)))
+        return {
+          text: 'Moving on by itself.',
+          key: 'Space',
+          does: 'goes now.',
+          clock: { left: remaining, total: auto },
+        }
+      }
+      return { text: 'Talk it through.', key: 'Space', does: 'moves on.' }
+    }
+    if (phase === 'final') {
+      return game.closed_at
+        ? { text: 'Game over.', key: 'R', does: 'opens a new room.' }
+        : { text: "That's the game.", key: 'W', does: 'wraps it up.' }
+    }
+    return null
+  })
   let allIn = $derived(roster.length > 0 && answered >= roster.length)
 
   // The two columns a teacher actually acts on mid-lesson.
@@ -501,14 +581,20 @@
     step()
   })
 
+  // The two timers below must depend on numbers only. `game` is a new object on
+  // every 2.5s poll and every broadcast, so an effect that reads it re-runs, its
+  // cleanup cancels the timer, and a once-per-question guard then stops it being
+  // set again — the room sat on "Closed" for good whenever a refresh landed
+  // inside the 1.2s beat. Depending on primitives means the effect only re-runs
+  // when the question, or the setting, actually changes.
+  let autoNextSeconds = $derived(game?.auto_next_seconds ?? 0)
+  let lockedKey = $derived(phase === 'locked' ? (game?.question_index ?? null) : null)
+
   // Move on without a keypress, for a teacher who would rather not stand at the
   // laptop. Off by default: most want to talk over the results.
   $effect(() => {
-    const seconds = game?.auto_next_seconds ?? 0
-    if (phase !== 'results' || seconds <= 0 || !host) return
-    const key = `next:${game.question_index}`
-    if (autoNextKey === key) return
-    autoNextKey = key
+    const seconds = autoNextSeconds
+    if (resultsKey == null || seconds <= 0 || !hostToken) return
     const id = setTimeout(step, seconds * 1000)
     return () => clearTimeout(id)
   })
@@ -517,10 +603,7 @@
   // own. Leaving the room staring at dimmed tiles waiting for a keypress was the
   // reason the reveal never seemed to arrive.
   $effect(() => {
-    if (phase !== 'locked' || !host) return
-    const key = `locked:${game.question_index}`
-    if (autoLockedKey === key) return
-    autoLockedKey = key
+    if (lockedKey == null || !hostToken) return
     const id = setTimeout(step, 1200)
     return () => clearTimeout(id)
   })
@@ -881,6 +964,32 @@
 </main>
 
 <button class="ghost help" onclick={() => help.showModal()} aria-label="Keyboard shortcuts">?</button>
+
+{#if helper && !helperHidden}
+  <aside class="helper" aria-label="What to do next">
+    {#if helper.clock}
+      {@const share = Math.min(1, Math.max(0, helper.clock.left / helper.clock.total))}
+      <svg class="ring" class:held={helper.held} viewBox="0 0 28 28" aria-hidden="true">
+        <circle class="track" cx="14" cy="14" r="11" />
+        <circle
+          class="arc"
+          cx="14"
+          cy="14"
+          r="11"
+          pathLength="100"
+          stroke-dasharray="100"
+          stroke-dashoffset={100 - share * 100}
+        />
+        <text x="14" y="14">{helper.clock.left}</text>
+      </svg>
+    {/if}
+    <p role="status">
+      {helper.text}
+      {#if helper.key}<kbd>{helper.key}</kbd> {helper.does}{/if}
+    </p>
+    <button class="shut" onclick={hideHelper} aria-label="Hide this helper until the tab is closed">×</button>
+  </aside>
+{/if}
 
 <!-- A click on the backdrop lands on the dialog itself, never on its contents. -->
 <dialog bind:this={help} aria-labelledby="help-title" onclick={(e) => e.target === help && help.close()}>
@@ -1372,7 +1481,7 @@
   /* The toggles carry their own on/off styling; without this exclusion the
      generic rule outranks `.toggle` on specificity and both states render the
      same solid accent, which is worse than no styling at all. */
-  button:not(.ghost):not(.yes):not(.no):not(.toggle):not(.link) {
+  button:not(.ghost):not(.yes):not(.no):not(.toggle):not(.link):not(.shut) {
     justify-self: start;
     padding: 10px 16px;
     border-radius: 8px;
@@ -1399,6 +1508,97 @@
 
   .help:hover {
     border-color: var(--neon-cyan);
+  }
+
+  /* The opposite of the page: ink for a background, stage for the letters, so
+     it reads as a note laid on top in either light without its own palette. */
+  .helper {
+    position: fixed;
+    left: 50%;
+    bottom: calc(var(--gutter-block) + env(safe-area-inset-bottom, 0px));
+    z-index: 10;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    /* Clear of the ? button on either side, however narrow the window. */
+    max-width: calc(100vw - 2 * (var(--gutter) + 56px));
+    min-height: 44px;
+    padding: 6px 6px 6px 14px;
+    border-radius: var(--radius-pill);
+    background: var(--ink);
+    color: var(--stage);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  }
+
+  .helper p {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.35;
+  }
+
+  .helper kbd {
+    margin: 0 2px;
+    padding: 1px 6px;
+    border: 1px solid currentColor;
+    background: none;
+    font-size: 11.5px;
+    white-space: nowrap;
+  }
+
+  .ring {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    margin-left: -6px;
+    transform: rotate(-90deg);
+  }
+
+  .ring circle {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.5;
+  }
+
+  .ring .track {
+    opacity: 0.2;
+  }
+
+  .ring .arc {
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.4s linear;
+  }
+
+  .ring.held .arc {
+    opacity: 0.45;
+  }
+
+  .ring text {
+    fill: currentColor;
+    font-size: 10px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-anchor: middle;
+    dominant-baseline: central;
+    transform: rotate(90deg);
+    transform-origin: 14px 14px;
+  }
+
+  .shut {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    color: inherit;
+    font-size: 18px;
+    line-height: 1;
+    opacity: 0.6;
+  }
+
+  .shut:hover {
+    opacity: 1;
   }
 
   dialog {
