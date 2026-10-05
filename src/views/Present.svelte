@@ -303,7 +303,7 @@
     {#if code}<span class="eyebrow code">{code}</span>{/if}
     <button
       class="sound"
-      class:off={!audio.unlocked || audio.muted}
+      class:on={audio.unlocked && !audio.muted}
       onclick={toggleSound}
       aria-label={audio.unlocked && !audio.muted ? 'Turn the sound off' : 'Turn the sound on'}
     >
@@ -313,19 +313,27 @@
     </button>
     <button
       class="sound"
-      class:off={!audio.music}
+      class:on={audio.music}
       onclick={toggleMusic}
       aria-label={audio.music ? 'Turn the music off' : 'Turn the music on'}
     >
       {audio.music ? 'Music on' : 'Music off'}
     </button>
     <button
-      class="sound"
-      class:off={!filled}
+      class="sound icon"
+      class:on={filled}
       onclick={toggleFullscreen}
       aria-label={filled ? 'Leave fullscreen' : 'Fill the screen'}
+      title={filled ? 'Leave fullscreen' : 'Fill the screen'}
     >
-      {filled ? 'Fullscreen' : 'Fill the screen'}
+      <!-- Corners pointing out to fill the screen, pointing in to leave it. -->
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        {#if filled}
+          <path d="M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4h4" />
+        {:else}
+          <path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" />
+        {/if}
+      </svg>
     </button>
     {#if phase === 'final' || closed}
       <!-- The way off the wall, and it appears only once there is nothing left
@@ -518,9 +526,26 @@
     text-transform: uppercase;
   }
 
-  .sound.off {
+  /* Lit when it is on, grey when it is off — the way a switch reads. */
+  .sound.on {
     border-color: var(--neon-pink);
     color: var(--neon-pink);
+  }
+
+  .sound.icon {
+    display: inline-grid;
+    place-items: center;
+    padding: 4px 9px;
+  }
+
+  .sound.icon svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   .leave {
