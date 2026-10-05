@@ -605,6 +605,9 @@
     padding: 2px 14px;
     border: 2px solid var(--neon-cyan);
     border-radius: var(--radius-pill);
+    /* Filled like the big plate in the lobby, so the doodles do not show through
+       the one string a late arrival has to read. */
+    background: var(--stage-raised);
     color: var(--ink);
     font-family: var(--display);
     font-size: 18px;
