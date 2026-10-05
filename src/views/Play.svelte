@@ -25,10 +25,18 @@
   let seat = $state(null)
   let game = $state(null)
 
-  // Whatever light the teacher has chosen for this room. A string, so the
-  // effect only runs when it actually changes, not on every refresh of the room.
-  let roomTheme = $derived(game?.theme ?? 'dark')
-  $effect(() => showTheme(roomTheme))
+  // Whatever light the teacher has chosen for this room. Until the room has
+  // loaded, the one saved with the seat at join — so the phone does not open
+  // dark and then switch. A string, so the effect only runs when it actually
+  // changes, not on every refresh of the room.
+  const joinedIn = readSeat()?.theme
+  let roomTheme = $derived(game?.theme ?? (joinedIn === 'light' ? 'light' : 'dark'))
+  $effect(() => {
+    showTheme(roomTheme)
+    // Keep the seat's copy current, so a reload mid-lesson also opens right.
+    const saved = readSeat()
+    if (saved && saved.theme !== roomTheme) writeSeat({ ...saved, theme: roomTheme })
+  })
   let players = $state([])
   let picked = $state(null)
   let answeredIndex = $state(null)

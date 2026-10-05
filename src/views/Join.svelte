@@ -1,8 +1,10 @@
 <script>
+  import { untrack } from 'svelte'
   // Room code, then name. The database owns both checks — a wrong code and a
   // taken name come back as messages written to be read by a fifteen-year-old.
-  import { joinGame } from '../lib/api.js'
+  import { fetchGame, joinGame } from '../lib/api.js'
   import { writeSeat } from '../lib/session.js'
+  import { showTheme } from '../lib/theme.svelte.js'
 
   // A scanned QR arrives with the room already decided, so the code step is
   // skipped entirely: the student sees the name field and nothing else.
@@ -19,6 +21,35 @@
 
   let field = $state(null)
 
+  // The teacher's light or dark. A scanned QR says which in its link, so the
+  // page is drawn in it straight away; the room itself is then asked, because
+  // it is the one that knows if the teacher has switched since the QR went up.
+  // A typed code is asked the moment it is entered. Nothing here is trusted for
+  // anything but colour.
+  const hinted = new URLSearchParams(window.location.search).get('t')
+  let theme = $state(hinted === 'light' ? 'light' : 'dark')
+
+  async function followRoom(roomCode) {
+    try {
+      const row = await fetchGame(roomCode.trim().toUpperCase())
+      if (!row) return
+      theme = row.theme === 'light' ? 'light' : 'dark'
+      showTheme(theme)
+    } catch {
+      // Colour is not worth an error on the one screen a student must get past.
+    }
+  }
+
+  // Once, on arrival — before the first paint, so a light room never flashes
+  // dark. The app never navigates after load, so `scanned` does not change.
+  $effect.pre(() => {
+    if (!scanned) return
+    untrack(() => {
+      showTheme(theme)
+      followRoom(scanned)
+    })
+  })
+
   // A student holding a phone should be typing the moment the step changes,
   // not hunting for the box.
   $effect(() => {
@@ -32,7 +63,9 @@
   function submitCode(event) {
     event.preventDefault()
     problem = ''
-    if (codeReady) step = 'name'
+    if (!codeReady) return
+    step = 'name'
+    followRoom(code)
   }
 
   async function submitName(event) {
@@ -42,7 +75,9 @@
     problem = ''
     try {
       const seat = await joinGame(code, name)
-      writeSeat({ ...seat, code: code.trim().toUpperCase(), name: name.trim() })
+      // The theme goes with the seat so /play opens in it, not dark until the
+      // room has loaded.
+      writeSeat({ ...seat, code: code.trim().toUpperCase(), name: name.trim(), theme })
       window.location.assign('/play')
     } catch (error) {
       problem = error.message
@@ -83,7 +118,14 @@
           {busy ? 'Joining…' : 'Join'}
         </button>
       </form>
-      <button class="back" onclick={() => (step = 'code')}>Wrong code?</button>
+      <button
+        class="back"
+        onclick={() => {
+          step = 'code'
+          theme = 'dark'
+          showTheme(theme)
+        }}
+      >Wrong code?</button>
     {/if}
 
     {#if problem}

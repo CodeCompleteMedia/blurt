@@ -212,7 +212,12 @@
   let closed = $derived(Boolean(game?.closed_at))
   // Same origin the wall is being served from, so this works on a preview
   // deployment and on a laptop in a classroom without a rebuild.
-  let joinUrl = $derived(code ? `${window.location.origin}/j/${code}` : '')
+  // The room's light rides along in the link, so a scanned phone opens the join
+  // page in it at once rather than dark until it has asked the room. Cosmetic
+  // only: the join page checks the room itself as soon as it can.
+  let joinUrl = $derived(
+    code ? `${window.location.origin}/j/${code}${roomTheme === 'light' ? '?t=light' : ''}` : '',
+  )
   let frozenAt = $derived(game?.paused_at ? Date.parse(game.paused_at) : null)
   let counting = $derived(phase === 'recall' || phase === 'question_open')
   let totalVotes = $derived(counts.reduce((sum, n) => sum + n, 0))
