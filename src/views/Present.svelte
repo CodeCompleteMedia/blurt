@@ -34,7 +34,7 @@
 
   // Whatever light the teacher has chosen for this room. A string, so the
   // effect only runs when it actually changes, not on every refresh of the room.
-  let roomTheme = $derived(game?.theme ?? 'dark')
+  let roomTheme = $derived(game?.theme ?? 'light')
   $effect(() => showTheme(roomTheme))
   let players = $state([])
   let question = $state(null)
@@ -213,11 +213,12 @@
   let closed = $derived(Boolean(game?.closed_at))
   // Same origin the wall is being served from, so this works on a preview
   // deployment and on a laptop in a classroom without a rebuild.
-  // The room's light rides along in the link, so a scanned phone opens the join
-  // page in it at once rather than dark until it has asked the room. Cosmetic
-  // only: the join page checks the room itself as soon as it can.
+  // A dark room says so in the link, so a scanned phone opens the join page
+  // dark at once rather than light until it has asked the room. Light is the
+  // default and needs no hint. Cosmetic only: the join page checks the room
+  // itself as soon as it can.
   let joinUrl = $derived(
-    code ? `${window.location.origin}/j/${code}${roomTheme === 'light' ? '?t=light' : ''}` : '',
+    code ? `${window.location.origin}/j/${code}${roomTheme === 'dark' ? '?t=dark' : ''}` : '',
   )
   let frozenAt = $derived(game?.paused_at ? Date.parse(game.paused_at) : null)
   let counting = $derived(phase === 'recall' || phase === 'question_open')

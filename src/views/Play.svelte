@@ -30,7 +30,7 @@
   // dark and then switch. A string, so the effect only runs when it actually
   // changes, not on every refresh of the room.
   const joinedIn = readSeat()?.theme
-  let roomTheme = $derived(game?.theme ?? (joinedIn === 'light' ? 'light' : 'dark'))
+  let roomTheme = $derived(game?.theme ?? (joinedIn === 'dark' ? 'dark' : 'light'))
   $effect(() => {
     showTheme(roomTheme)
     // Keep the seat's copy current, so a reload mid-lesson also opens right.

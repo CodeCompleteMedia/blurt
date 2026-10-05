@@ -30,18 +30,18 @@ declare
   cb text := current_setting('blurt.cb');
   t text; refused boolean;
 begin
-  -- A new room is dark, and a screen holding only the code can read that.
+  -- A new room is light, and a screen holding only the code can read that.
   set local role anon;
   select g.theme into t from public.game_state(ca) g;
   reset role;
-  if t is distinct from 'dark' then raise exception 'a new room should be dark, got %', t; end if;
+  if t is distinct from 'light' then raise exception 'a new room should be light, got %', t; end if;
 
-  -- The host turns the lights up — on their room and nobody else's.
-  perform public.set_game_theme(ha, 'light');
+  -- The host turns the lights down — on their room and nobody else's.
+  perform public.set_game_theme(ha, 'dark');
   select g.theme into t from public.game_state(ca) g;
-  if t is distinct from 'light' then raise exception 'the host set light, room reads %', t; end if;
+  if t is distinct from 'dark' then raise exception 'the host set dark, room reads %', t; end if;
   select g.theme into t from public.game_state(cb) g;
-  if t is distinct from 'dark' then raise exception 'the other room changed too: %', t; end if;
+  if t is distinct from 'light' then raise exception 'the other room changed too: %', t; end if;
 
   -- A token that is not a host token changes nothing.
   refused := false;
@@ -59,12 +59,12 @@ begin
   end;
   if not refused then raise exception 'a theme that is neither dark nor light was accepted'; end if;
   select g.theme into t from public.game_state(ca) g;
-  if t is distinct from 'light' then raise exception 'a refused value still changed the room: %', t; end if;
+  if t is distinct from 'dark' then raise exception 'a refused value still changed the room: %', t; end if;
 
-  perform public.set_game_theme(hb, 'light');
   perform public.set_game_theme(hb, 'dark');
+  perform public.set_game_theme(hb, 'light');
   select g.theme into t from public.game_state(cb) g;
-  if t is distinct from 'dark' then raise exception 'back to dark did not stick: %', t; end if;
+  if t is distinct from 'light' then raise exception 'back to light did not stick: %', t; end if;
 
   raise notice 'ok  a room carries its host''s theme, and only its host can set it';
 end $$;

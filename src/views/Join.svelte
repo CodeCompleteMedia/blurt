@@ -27,13 +27,13 @@
   // A typed code is asked the moment it is entered. Nothing here is trusted for
   // anything but colour.
   const hinted = new URLSearchParams(window.location.search).get('t')
-  let theme = $state(hinted === 'light' ? 'light' : 'dark')
+  let theme = $state(hinted === 'dark' ? 'dark' : 'light')
 
   async function followRoom(roomCode) {
     try {
       const row = await fetchGame(roomCode.trim().toUpperCase())
       if (!row) return
-      theme = row.theme === 'light' ? 'light' : 'dark'
+      theme = row.theme === 'dark' ? 'dark' : 'light'
       showTheme(theme)
     } catch {
       // Colour is not worth an error on the one screen a student must get past.
@@ -122,7 +122,7 @@
         class="back"
         onclick={() => {
           step = 'code'
-          theme = 'dark'
+          theme = 'light'
           showTheme(theme)
         }}
       >Wrong code?</button>

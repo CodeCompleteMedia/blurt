@@ -4,16 +4,19 @@
 // the room (`games.theme`) so the wall and the phones — other devices, which
 // cannot see this browser's storage — read it alongside everything else about
 // the room. Screens that are not in a room yet (the join page, an idle display)
-// have no teacher to follow, so they stay dark.
+// have no teacher to follow, so they show the default.
+//
+// Light is the default everywhere: dark is what someone chooses. index.html
+// paints light before any script runs, so no screen opens dark and switches.
 
 const KEY = 'blurt-theme'
 
 function stored() {
   try {
-    return localStorage.getItem(KEY) === 'light' ? 'light' : 'dark'
+    return localStorage.getItem(KEY) === 'dark' ? 'dark' : 'light'
   } catch {
     // Private windows and locked-down school profiles can refuse storage.
-    return 'dark'
+    return 'light'
   }
 }
 
@@ -22,7 +25,7 @@ export const theme = $state({ mode: stored() })
 /** Light the page as `mode` without remembering it — what a wall or phone does. */
 export function showTheme(mode) {
   const root = document.documentElement
-  root.dataset.theme = mode === 'light' ? 'light' : 'dark'
+  root.dataset.theme = mode === 'dark' ? 'dark' : 'light'
   // The browser chrome on phones and tablets follows this, so it has to match
   // the page rather than stay studio-dark above a light one.
   const stage = getComputedStyle(root).getPropertyValue('--stage').trim()
