@@ -30,14 +30,14 @@ No code until three choices are made, because each one changes what gets built.
 
 **2. What is free, what is paid.** Limits must be things the database can count. Candidates:
 
-| Limit | Free tier idea | Paid |
-| --- | --- | --- |
-| Quizzes | 3 | Unlimited |
-| Rooms per month | 5 | Unlimited |
-| Players per room | 15 | 40+ |
-| Report history | Last 30 days | Everything |
-| Paired displays | 1 | Unlimited |
-| CSV export | No | Yes |
+| Limit            | Free tier idea | Paid       |
+| ---------------- | -------------- | ---------- |
+| Quizzes          | 3              | Unlimited  |
+| Rooms per month  | 5              | Unlimited  |
+| Players per room | 15             | 40+        |
+| Report history   | Last 30 days   | Everything |
+| Paired displays  | 1              | Unlimited  |
+| CSV export       | No             | Yes        |
 
 The numbers are placeholders to argue about, not a recommendation. One rule is fixed: a room that is already running is never cut off for a lapsed payment — it finishes, and the next one is blocked.
 
