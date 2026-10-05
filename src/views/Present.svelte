@@ -305,9 +305,11 @@
       class="sound"
       class:off={!audio.unlocked || audio.muted}
       onclick={toggleSound}
-      aria-label={!audio.unlocked ? 'Turn sound on' : audio.muted ? 'Unmute' : 'Mute'}
+      aria-label={audio.unlocked && !audio.muted ? 'Turn the sound off' : 'Turn the sound on'}
     >
-      {!audio.unlocked ? 'Click the wall to start' : audio.muted ? 'Muted' : 'Sound on'}
+      <!-- Off whether the browser is still holding it silent or it was muted:
+           either way one click turns it on, the same as Music beside it. -->
+      {audio.unlocked && !audio.muted ? 'Sound on' : 'Sound off'}
     </button>
     <button
       class="sound"
