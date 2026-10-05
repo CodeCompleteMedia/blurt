@@ -71,6 +71,11 @@
     filter: none;
   }
 
+  /* In daylight a glow is a smudge, not light. */
+  :global([data-theme='light']) .arc {
+    filter: none;
+  }
+
   .count {
     font-family: var(--bulbs);
     font-size: 44px;

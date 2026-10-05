@@ -25,10 +25,16 @@
   import { clockBase, remainingSeconds, ticker } from '../lib/clock.js'
   import { calm, rise, slam } from '../lib/motion.js'
   import { isMuted, isUnlocked, setMuted, sounds, unlock } from '../lib/sound.js'
+  import { showTheme } from '../lib/theme.svelte.js'
 
   let { code = null } = $props()
 
   let game = $state(null)
+
+  // Whatever light the teacher has chosen for this room. A string, so the
+  // effect only runs when it actually changes, not on every refresh of the room.
+  let roomTheme = $derived(game?.theme ?? 'dark')
+  $effect(() => showTheme(roomTheme))
   let players = $state([])
   let question = $state(null)
   let counts = $state([])

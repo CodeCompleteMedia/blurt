@@ -106,7 +106,7 @@
 
   .p1 .name {
     font-size: clamp(30px, 5.6vw, 104px);
-    color: var(--neon-yellow);
+    color: var(--gold-ink);
     text-shadow: var(--text-glow-yellow);
   }
 

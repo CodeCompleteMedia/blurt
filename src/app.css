@@ -81,6 +81,9 @@
   --neon-cyan: #19e3ff;
   --neon-yellow: #ffe53d;
   --on-yellow: #1a1000;
+  /* First place as lettering rather than as a lamp. The same tube in the dark;
+     in daylight a yellow that bright cannot be read, so it gets its own ink. */
+  --gold-ink: var(--neon-yellow);
 
   /* State. Always with a mark or a word, never by hue alone. */
   --correct: #39ff88;
@@ -118,6 +121,42 @@
   font-size: 16px;
   line-height: 1.5;
   color-scheme: dark;
+}
+
+/*
+ * The house lights up — for the teacher's screens only (see lib/theme.svelte.js).
+ * Neon does not survive daylight: the tubes become inks dark enough to read as
+ * text on white, and the blooms go, because a glow on a pale page is a smudge.
+ * Everything else in the product reads these same names, so nothing below the
+ * tokens needs to know which light it is in.
+ */
+:root[data-theme='light'] {
+  --stage: #f6f2fc;
+  --stage-raised: #ffffff;
+  --stage-high: #ebe3f7;
+  --line: rgba(26, 11, 51, 0.14);
+  --line-strong: #8d7bc2;
+  --ink: #1a0b33;
+  --ink-muted: #5d4d82;
+
+  --neon-pink: #c8006f;
+  --on-pink: #ffffff;
+  --neon-pink-deep: #7d0046;
+  --neon-cyan: #007a99;
+  --neon-yellow: #f2c400;
+  --gold-ink: #8f6a00;
+
+  --correct: #0b7a3e;
+  --wrong: #c4173f;
+
+  --glow-pink: none;
+  --glow-cyan: none;
+  --glow-yellow: none;
+  --glow-correct: 0 0 0 3px #0b7a3e;
+  --text-glow-pink: none;
+  --text-glow-yellow: none;
+
+  color-scheme: light;
 }
 
 * {

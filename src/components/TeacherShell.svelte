@@ -5,8 +5,9 @@
   // The wall and the phone deliberately get none of this. A projector with a menu
   // bar is a projector with something to fiddle with, and a student's screen has
   // exactly one job at a time.
-  import { auth, signOut } from '../lib/auth.svelte.js'
+  import { auth, setPassword, signOut } from '../lib/auth.svelte.js'
   import { readHost } from '../lib/session.js'
+  import { setTheme, theme } from '../lib/theme.svelte.js'
 
   let { current, children } = $props()
 
@@ -18,6 +19,63 @@
   async function leave() {
     await signOut()
     window.location.assign('/')
+  }
+
+  // The account menu. A plain disclosure rather than an ARIA menu: a handful of
+  // links and buttons that Tab already walks, with Escape and a click elsewhere
+  // to put it away.
+  let open = $state(false)
+  let menu = $state()
+  let trigger = $state()
+
+  function dismiss(event) {
+    if (open && !menu?.contains(event.target)) open = false
+  }
+
+  function onkeydown(event) {
+    if (open && event.key === 'Escape') {
+      open = false
+      trigger?.focus()
+    }
+  }
+
+  // Changing the password while signed in — the same call the recovery link
+  // ends in, without the email round trip.
+  let changing = $state()
+  let password = $state('')
+  let again = $state('')
+  let busy = $state(false)
+  let problem = $state('')
+  let changed = $state(false)
+
+  function changePassword() {
+    open = false
+    password = ''
+    again = ''
+    problem = ''
+    changed = false
+    changing.showModal()
+  }
+
+  async function savePassword(event) {
+    event.preventDefault()
+    if (busy) return
+    if (password !== again) {
+      problem = 'Those two do not match.'
+      return
+    }
+    busy = true
+    problem = ''
+    try {
+      await setPassword(password)
+      password = ''
+      again = ''
+      changed = true
+    } catch (error) {
+      problem = error.message
+    } finally {
+      busy = false
+    }
   }
 </script>
 
@@ -34,9 +92,44 @@
       <a href="/games" aria-current={current === 'games' ? 'page' : undefined}>Reports</a>
     </div>
 
-    <div class="who">
-      <span class="email">{auth.user?.email}</span>
-      <button onclick={leave}>Sign out</button>
+    <div class="who" bind:this={menu}>
+      <button
+        class="account"
+        bind:this={trigger}
+        aria-expanded={open}
+        aria-controls="account-menu"
+        aria-label="Account"
+        onclick={() => (open = !open)}
+      >
+        <span class="initial" aria-hidden="true">{(auth.user?.email ?? '?')[0].toUpperCase()}</span>
+        <span class="chevron" aria-hidden="true">▾</span>
+      </button>
+
+      {#if open}
+        <div class="menu" id="account-menu">
+          <div class="signed-in">
+            <span class="eyebrow">Signed in as</span>
+            <span class="address">{auth.user?.email}</span>
+          </div>
+
+          <div class="group">
+            <button class="item" onclick={changePassword}>Change password</button>
+            <a class="item" href="/" target="_blank" rel="noopener">Student join page ↗</a>
+          </div>
+
+          <div class="group theme" role="group" aria-labelledby="theme-label">
+            <span class="eyebrow" id="theme-label">Appearance</span>
+            <div class="seg">
+              <button aria-pressed={theme.mode === 'dark'} onclick={() => setTheme('dark')}>Dark</button>
+              <button aria-pressed={theme.mode === 'light'} onclick={() => setTheme('light')}>Light</button>
+            </div>
+          </div>
+
+          <div class="group">
+            <button class="item" onclick={leave}>Sign out</button>
+          </div>
+        </div>
+      {/if}
     </div>
   </nav>
 
@@ -44,6 +137,51 @@
     {@render children()}
   </div>
 </div>
+
+<svelte:window onclick={dismiss} {onkeydown} />
+
+<!-- A click on the backdrop lands on the dialog itself, never on its contents. -->
+<dialog
+  bind:this={changing}
+  aria-labelledby="change-title"
+  onclick={(e) => e.target === changing && changing.close()}
+>
+  <form class="sheet" onsubmit={savePassword}>
+    <h2 id="change-title">Change password</h2>
+
+    {#if changed}
+      <p class="notice" role="status">Done. Use the new one next time you sign in.</p>
+      <button type="button" class="primary" onclick={() => changing.close()}>Close</button>
+    {:else}
+      <label for="change-password">New password</label>
+      <input
+        id="change-password"
+        type="password"
+        bind:value={password}
+        autocomplete="new-password"
+        minlength="8"
+        required
+      />
+
+      <label for="change-password-again">New password again</label>
+      <input
+        id="change-password-again"
+        type="password"
+        bind:value={again}
+        autocomplete="new-password"
+        minlength="8"
+        required
+      />
+
+      {#if problem}<p class="problem" role="alert">{problem}</p>{/if}
+
+      <div class="actions">
+        <button type="button" class="quiet" onclick={() => changing.close()}>Cancel</button>
+        <button type="submit" class="primary" disabled={busy}>{busy ? '…' : 'Save password'}</button>
+      </div>
+    {/if}
+  </form>
+</dialog>
 
 <style>
   .shell {
@@ -117,21 +255,202 @@
     min-width: 0;
   }
 
-  .email {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 13px;
+  .who {
+    position: relative;
+  }
+
+  .account {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px 3px 3px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
     color: var(--ink-muted);
   }
 
-  .who button {
-    padding: 6px 12px;
-    border: 1px solid var(--line);
-    border-radius: 999px;
+  .account:hover,
+  .account[aria-expanded='true'] {
+    border-color: var(--line-strong);
     color: var(--ink);
+  }
+
+  .initial {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--neon-pink);
+    color: var(--on-pink);
+    font-family: var(--display);
     font-size: 13px;
+  }
+
+  .chevron {
+    font-size: 11px;
+  }
+
+  .menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 20;
+    display: grid;
+    width: 260px;
+    max-width: calc(100vw - 2 * var(--gutter));
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-lg);
+    background: var(--stage-raised);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+  }
+
+  .signed-in {
+    display: grid;
+    gap: 2px;
+    padding: 14px 16px 12px;
+  }
+
+  .address {
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .group {
+    display: grid;
+    padding: 6px;
+    border-top: 1px solid var(--line);
+  }
+
+  .item {
+    display: block;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--ink);
+    font-size: 14px;
+    text-align: left;
+    text-decoration: none;
+  }
+
+  .item:hover {
+    background: var(--stage-high);
+  }
+
+  .theme {
+    gap: 8px;
+    padding: 10px 16px 12px;
+  }
+
+  .seg {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+  }
+
+  .seg button {
+    padding: 6px 0;
+    border-radius: var(--radius-pill);
+    color: var(--ink-muted);
+    font-size: 13px;
+  }
+
+  .seg button[aria-pressed='true'] {
+    background: var(--stage-high);
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  dialog {
+    width: min(400px, calc(100vw - 32px));
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-lg);
+    background: var(--stage-raised);
+    color: var(--ink);
+  }
+
+  dialog::backdrop {
+    background: rgba(11, 7, 22, 0.72);
+  }
+
+  .sheet {
+    display: grid;
+    gap: 10px;
+    padding: 22px;
+  }
+
+  .sheet h2 {
+    margin-bottom: 6px;
+    font-size: 20px;
+  }
+
+  .sheet label {
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+
+  .sheet input {
+    width: 100%;
+    min-width: 0;
+    padding: 12px;
+    border: 2px solid var(--line-strong);
+    border-radius: var(--radius-md);
+    background: var(--stage);
+    color: var(--ink);
+    font: inherit;
+  }
+
+  .sheet input:focus {
+    border-color: var(--neon-cyan);
+  }
+
+  .actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  .primary {
+    justify-self: end;
+    padding: 10px 16px;
+    border-radius: 8px;
+    background: var(--neon-pink);
+    color: var(--on-pink);
+    font-weight: 600;
+  }
+
+  .primary:disabled {
+    background: var(--stage-high);
+    color: var(--ink-muted);
+  }
+
+  .quiet {
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink);
+  }
+
+  .problem,
+  .notice {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--wrong);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+
+  .notice {
+    border-color: var(--correct);
   }
 
   /* The editor is longer than a screen; the room is sized to fit one. Either way
@@ -141,10 +460,6 @@
   }
 
   @media (max-width: 560px) {
-    .email {
-      display: none;
-    }
-
     nav {
       gap: 8px 10px;
     }

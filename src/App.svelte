@@ -1,6 +1,7 @@
 <script>
   import { configured } from './lib/supabase.js'
   import { routeFor } from './lib/router.js'
+  import { applyTheme } from './lib/theme.svelte.js'
   import AuthGate from './components/AuthGate.svelte'
   import TeacherShell from './components/TeacherShell.svelte'
   import Edit from './views/Edit.svelte'
@@ -12,6 +13,11 @@
   import Wall from './views/Wall.svelte'
 
   const route = routeFor()
+
+  // Before anything mounts, so the sign-in card is drawn in the chosen light
+  // rather than switching under the teacher. The wall and the phones follow the
+  // room's copy of this choice instead, once they know which room they are in.
+  if (['host', 'games', 'edit'].includes(route.view)) applyTheme()
 </script>
 
 {#if !configured}

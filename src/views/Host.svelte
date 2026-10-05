@@ -24,10 +24,12 @@
     renamePlayer,
     rosterStats,
     setPaused,
+    setGameTheme,
     updateGameSettings,
     watchGame,
   } from '../lib/api.js'
   import { clockBase, heartbeat, remainingSeconds, ticker } from '../lib/clock.js'
+  import { theme } from '../lib/theme.svelte.js'
   import { clearHost, readHost, readSettings, writeHost, writeSettings } from '../lib/session.js'
 
   let host = $state(null)
@@ -54,6 +56,22 @@
   let projector = null
   let settings = $state(readSettings())
   let showSettings = $state(false)
+  let help = $state()
+
+  // Every key the dashboard answers to, in one place — the handler below is the
+  // source of truth, so a new shortcut belongs in both.
+  const SHORTCUTS = [
+    ['Space', 'Next step — open the room, reveal, move on'],
+    ['Y', 'Correct, when a student has the floor'],
+    ['N', 'Wrong, when a student has the floor'],
+    ['E', 'Add 15 seconds to the clock'],
+    ['H', 'Pause or resume the clock'],
+    ['S', 'Show or hide settings'],
+    ['P', 'Open the projector'],
+    ['W', 'Wrap up, once the game is over'],
+    ['R', 'Close this room and start a new one'],
+    ['?', 'This list'],
+  ]
   let autoNextKey = ''
 
   const RECALL_CHOICES = [5, 8, 12, 15, 20, 30]
@@ -385,6 +403,14 @@
     const key = event.key.toLowerCase()
     // Typing a name, or type-ahead inside a dropdown, is not a shortcut.
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return
+    // While any dialog is up — this list, or the account's password form — keys
+    // belong to it; Escape closes it on its own.
+    if (document.querySelector('dialog[open]')) return
+
+    if (event.key === '?') {
+      help?.showModal()
+      return
+    }
 
     if (phase === 'blurt_claimed' && (key === 'y' || key === 'n')) {
       event.preventDefault()
@@ -412,6 +438,18 @@
   })
 
   $effect(() => ticker((t) => (now = t)))
+
+  // The room wears the teacher's light or dark, so the wall and every phone
+  // match this screen. Re-sent when the room or the choice changes — both
+  // strings, so a roster refresh never sets this off.
+  let hostToken = $derived(host?.hostToken ?? null)
+  $effect(() => {
+    const mode = theme.mode
+    if (!hostToken) return
+    setGameTheme(hostToken, mode).catch(() => {
+      // The room just stays as it was; not worth interrupting a lesson over.
+    })
+  })
 
   $effect(() => heartbeat((t) => (beat = t)))
 
@@ -839,12 +877,25 @@
     {:else}
       <p class="muted">Nobody has joined yet. Students go to <strong>/</strong> and enter {host.code}.</p>
     {/if}
-
-    <footer class="eyebrow">
-      Space advances · Y/N judges · E +15s · H pause · S settings · P projector · R new room
-    </footer>
   {/if}
 </main>
+
+<button class="ghost help" onclick={() => help.showModal()} aria-label="Keyboard shortcuts">?</button>
+
+<!-- A click on the backdrop lands on the dialog itself, never on its contents. -->
+<dialog bind:this={help} aria-labelledby="help-title" onclick={(e) => e.target === help && help.close()}>
+  <div class="sheet">
+    <span class="eyebrow" id="help-title">Keyboard shortcuts</span>
+    <dl>
+      {#each SHORTCUTS as [key, what]}
+        <dt><kbd>{key}</kbd></dt>
+        <dd>{what}</dd>
+      {/each}
+    </dl>
+    <p class="note">Enter works like Space. None of these fire while you are typing in a box.</p>
+    <button class="ghost" onclick={() => help.close()}>Close</button>
+  </div>
+</dialog>
 
 <style>
   /* A column rather than fixed grid rows: which panels are present changes with
@@ -858,6 +909,8 @@
     max-width: 1100px;
     margin: 0 auto;
     width: 100%;
+    /* Room at the bottom for the help button, so it never covers the last row. */
+    padding-bottom: calc(var(--gutter-block) + env(safe-area-inset-bottom, 0px) + 56px);
   }
 
   header {
@@ -1326,6 +1379,71 @@
     background: var(--neon-pink);
     color: var(--on-pink);
     font-weight: 600;
+  }
+
+  .help {
+    position: fixed;
+    left: calc(var(--gutter) + env(safe-area-inset-left, 0px));
+    bottom: calc(var(--gutter-block) + env(safe-area-inset-bottom, 0px));
+    z-index: 10;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-color: var(--line-strong);
+    background: var(--stage-raised);
+    font-family: var(--display);
+    font-size: 18px;
+  }
+
+  .help:hover {
+    border-color: var(--neon-cyan);
+  }
+
+  dialog {
+    width: min(460px, calc(100vw - 32px));
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-lg);
+    background: var(--stage-raised);
+    color: var(--ink);
+  }
+
+  dialog::backdrop {
+    background: rgba(11, 7, 22, 0.72);
+  }
+
+  .sheet {
+    display: grid;
+    gap: 14px;
+    padding: 22px;
+  }
+
+  dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px 16px;
+    align-items: center;
+    margin: 0;
+  }
+
+  dd {
+    margin: 0;
+    font-size: 15px;
+  }
+
+  dl kbd {
+    margin-left: 0;
+    min-width: 28px;
+    padding: 3px 8px;
+    border: 1px solid var(--line);
+    background: var(--stage-high);
+    text-align: center;
+  }
+
+  .sheet .ghost {
+    justify-self: end;
   }
 
   @media (max-width: 640px) {

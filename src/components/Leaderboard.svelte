@@ -52,8 +52,12 @@
       0 0 18px -2px #ffe53d80;
   }
 
+  :global([data-theme='light']) li:first-child {
+    box-shadow: inset 0 0 0 2px var(--neon-yellow);
+  }
+
   li:first-child .rank {
-    color: var(--neon-yellow);
+    color: var(--gold-ink);
   }
 
   li:first-child .score {

@@ -143,6 +143,12 @@ export async function submitAnswer(playerToken, choice) {
   if (error) fail(error)
 }
 
+/** Light or dark for every screen in the room. Takes effect straight away. */
+export async function setGameTheme(hostToken, theme) {
+  const { error } = await db.rpc('set_game_theme', { p_host_token: hostToken, p_theme: theme })
+  if (error) fail(error)
+}
+
 /** How the teacher wants this round to run. Takes effect from the next question. */
 export async function updateGameSettings(hostToken, settings) {
   const { error } = await db.rpc('update_game_settings', {

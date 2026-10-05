@@ -20,9 +20,15 @@
   import { slam } from '../lib/motion.js'
   import { ordinal } from '../lib/ordinal.js'
   import { clearSeat, readSeat, writeSeat } from '../lib/session.js'
+  import { showTheme } from '../lib/theme.svelte.js'
 
   let seat = $state(null)
   let game = $state(null)
+
+  // Whatever light the teacher has chosen for this room. A string, so the
+  // effect only runs when it actually changes, not on every refresh of the room.
+  let roomTheme = $derived(game?.theme ?? 'dark')
+  $effect(() => showTheme(roomTheme))
   let players = $state([])
   let picked = $state(null)
   let answeredIndex = $state(null)
@@ -413,7 +419,7 @@
     margin: 0;
     font-family: var(--display);
     font-size: 26px;
-    color: var(--neon-yellow);
+    color: var(--gold-ink);
   }
 
   .bad {
