@@ -56,7 +56,8 @@ const HEADERS = {
   recall: ['recall', 'recall seconds'],
   blurt: ['blurt', 'blurtable', 'blurt?'],
 }
-const POSITIONAL = ['question', 'a', 'b', 'c', 'd', 'correct', 'seconds']
+// `blurt` last, so a seven-column sheet from before it existed reads the same.
+const POSITIONAL = ['question', 'a', 'b', 'c', 'd', 'correct', 'seconds', 'blurt']
 
 function columnsFor(firstRow) {
   const lowered = firstRow.map((cell) => cell.toLowerCase())
@@ -120,11 +121,16 @@ export function questionsFromText(text) {
     if (Number.isNaN(seconds)) return fail('seconds must be a whole number from 5 to 120')
     if (Number.isNaN(recall)) return fail('recall must be a whole number from 3 to 60')
 
-    // Off for typed questions, and off if the sheet says so.
+    // Empty means the editor's default: on, except for typed questions. Anything
+    // else has to be a clear yes or no — a typo that silently switched the blurt
+    // round on would only be found in front of the class.
     const blurtCell = get(row, 'blurt').toLowerCase()
-    const blurtEnabled = blurtCell
-      ? !FALSE.includes(blurtCell) && blurtCell !== '0'
-      : kind !== 'text'
+    let blurtEnabled = kind !== 'text'
+    if (blurtCell) {
+      if ([...TRUE, '1'].includes(blurtCell)) blurtEnabled = true
+      else if ([...FALSE, '0'].includes(blurtCell)) blurtEnabled = false
+      else return fail(`blurt must be yes or no, not "${get(row, 'blurt')}"`)
+    }
 
     const base = { kind, text: textCell, seconds, recallSeconds: recall ?? 8, blurtEnabled }
 

@@ -301,14 +301,16 @@
       <section class="import">
         <p class="muted">
           Copy rows out of Google Sheets or Excel and paste them here, or choose a .csv file. Columns:
-          <strong>question, a, b, c, d, correct, seconds</strong>. Leave the choices empty and put
+          <strong>question, a, b, c, d, correct, seconds, blurt</strong>. Leave the choices empty and put
           <em>true</em> or <em>false</em> in <strong>correct</strong> for a true/false question, or the
-          answer itself for a typed one (<em>answer|another way</em>).
+          answer itself for a typed one (<em>answer|another way</em>). Put <em>yes</em> or <em>no</em> in
+          <strong>blurt</strong> to choose whether the question opens with a blurt round; left empty, it is
+          yes for choice and true/false questions and no for typed ones.
         </p>
         <textarea
           id="import-paste"
           rows="6"
-          placeholder="Capital of France?&#9;Paris&#9;Lyon&#9;Nice&#9;&#9;A&#9;15"
+          placeholder="Capital of France?&#9;Paris&#9;Lyon&#9;Nice&#9;&#9;A&#9;15&#9;yes"
           bind:value={pasted}
         ></textarea>
         <input id="import-file" type="file" accept=".csv,.tsv,.txt,text/csv" onchange={readFile} />

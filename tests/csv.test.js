@@ -66,6 +66,30 @@ test('the sheet can turn blurting off per row, and typed rows start off', () => 
   assert.deepEqual(questions.map((q) => q.blurtEnabled), [true, false, false])
 })
 
+test('blurt is the eighth column when there is no header row', () => {
+  const { questions, problems } = questionsFromText(
+    [
+      'Rounds on\tParis\tLyon\t\t\tA\t15\tyes',
+      'Rounds off\tParis\tLyon\t\t\tA\t15\tno',
+      'Left empty\tParis\tLyon\t\t\tA\t15',
+      'Typed, opted in\t\t\t\t\tParis\t20\tyes',
+    ].join('\n'),
+  )
+  assert.deepEqual(problems, [])
+  assert.deepEqual(questions.map((q) => q.blurtEnabled), [true, false, true, true])
+  assert.equal(questions[3].kind, 'text')
+})
+
+test('a blurt cell that is not a yes or a no is a problem, not a guess', () => {
+  const { questions, problems } = questionsFromText(
+    ['question,a,b,correct,blurt', 'Clear,x,y,a,Y', 'Number,x,y,a,0', 'Typo,x,y,a,yse'].join('\n'),
+  )
+  assert.deepEqual(questions.map((q) => q.blurtEnabled), [true, false])
+  assert.equal(problems.length, 1)
+  assert.equal(problems[0].line, 4)
+  assert.match(problems[0].why, /blurt must be yes or no/)
+})
+
 test('empty input is not an error', () => {
   assert.deepEqual(questionsFromText('  \n\n'), { questions: [], problems: [] })
 })
