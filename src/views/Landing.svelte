@@ -297,10 +297,11 @@
     min-height: 100%;
     background: var(--stage);
     color: var(--ink);
-    /* The page scrolls; the app's other surfaces are fixed to one screen. */
-    overflow-y: auto;
-    overflow-x: hidden;
-    height: 100%;
+    /* The window is the one scroller. This used to scroll itself at full
+       height, which gave the page a second scrollbar. `clip`, not `hidden`, for
+       the full-bleed doodles: hidden makes a scroll container that an anchor
+       link can push sideways, which slid the whole page off its left edge. */
+    overflow-x: clip;
   }
 
   main,
