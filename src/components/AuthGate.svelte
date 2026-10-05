@@ -23,6 +23,7 @@
   let problem = $state('')
   let notice = $state('')
   let unconfirmed = $state(false)
+  let shown = $state(false)
 
   // Arriving from a confirmation link that did not work. The usual cause is not
   // the teacher: mail scanners and link previews open these links first, which
@@ -157,14 +158,25 @@
 
       {#if mode !== 'reset'}
         <label for="auth-password">Password</label>
-        <input
-          id="auth-password"
-          type="password"
-          bind:value={password}
-          autocomplete={mode === 'in' ? 'current-password' : 'new-password'}
-          minlength="8"
-          required
-        />
+        <div class="reveal">
+          <input
+            id="auth-password"
+            type={shown ? 'text' : 'password'}
+            bind:value={password}
+            autocomplete={mode === 'in' ? 'current-password' : 'new-password'}
+            minlength="8"
+            required
+          />
+          <button
+            type="button"
+            class="peek"
+            aria-controls="auth-password"
+            aria-pressed={shown}
+            onclick={() => (shown = !shown)}
+          >
+            {shown ? 'Hide' : 'Show'}
+          </button>
+        </div>
       {/if}
 
       <button type="submit" disabled={busy}>
@@ -263,6 +275,29 @@
 
   input:focus {
     border-color: var(--neon-cyan);
+  }
+
+  .reveal {
+    position: relative;
+  }
+
+  .reveal input {
+    padding-right: 72px;
+  }
+
+  .peek {
+    position: absolute;
+    inset: 2px 2px 2px auto;
+    padding: 0 14px;
+    border-radius: var(--radius-md);
+    color: var(--ink-muted);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .peek:hover {
+    color: var(--ink);
   }
 
   button[type='submit'] {
