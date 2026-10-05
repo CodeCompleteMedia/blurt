@@ -50,4 +50,6 @@ function preloadFonts(match = /latin[^/]*\.woff2$/, skip = [/bungee-inline/]) {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [svelte(), preloadFonts()],
+  // The prerender step reads this to find the landing page's chunk and CSS.
+  build: { manifest: true },
 })
