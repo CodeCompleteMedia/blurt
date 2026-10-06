@@ -11,11 +11,17 @@
     signUp,
     signOut,
   } from '../lib/auth.svelte.js'
+  import { intentInAddress, rememberIntent } from '../lib/billing.svelte.js'
 
   let { children } = $props()
 
+  // Arriving from the Teacher plan on the pricing page: /host?plan=month|year.
+  // Whoever gets through this gate is sent on to Checkout by the shell.
+  const wanted = intentInAddress()
+
   // in | up | reset — the third asks only for an address and sends a link.
-  let mode = $state('in')
+  // Someone who came to buy is most likely new, so they start on sign-up.
+  let mode = $state(wanted ? 'up' : 'in')
   let email = $state('')
   let password = $state('')
   let again = $state('')
@@ -62,9 +68,16 @@
         // account: this form must not say which teachers exist.
         notice = 'If that address has an account, a reset link is on its way. Open it on this device.'
         mode = 'in'
-      } else if (await signUp(email.trim(), password)) {
-        notice = 'Check your inbox to confirm the address, then sign in.'
-        mode = 'in'
+      } else {
+        // The confirmation link opens a new tab with no ?plan= on it, so the
+        // choice is kept on this device for the trip through the inbox.
+        if (wanted) rememberIntent(wanted)
+        if (await signUp(email.trim(), password)) {
+          notice = wanted
+            ? 'Check your inbox to confirm the address. Open the link on this device and payment comes next.'
+            : 'Check your inbox to confirm the address, then sign in.'
+          mode = 'in'
+        }
       }
     } catch (error) {
       problem = error.message
@@ -152,6 +165,12 @@
             ? 'We will email you a link to set a new password.'
             : 'Create a teacher account.'}
       </p>
+      {#if wanted && mode !== 'reset'}
+        <p class="wanted">
+          Teacher plan, {wanted === 'year' ? '$72 a year' : '$8 a month'}.
+          {mode === 'up' ? 'Create your account, then pay on the next screen.' : 'Sign in, then pay on the next screen.'}
+        </p>
+      {/if}
 
       <label for="auth-email">Email</label>
       <input id="auth-email" type="email" bind:value={email} autocomplete="email" required />
@@ -242,6 +261,16 @@
   .muted {
     margin: 0 0 8px;
     color: var(--ink-muted);
+    text-align: center;
+  }
+
+  .wanted {
+    margin: 0 0 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.5;
     text-align: center;
   }
 

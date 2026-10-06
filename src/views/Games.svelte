@@ -8,7 +8,8 @@
   import { SvelteSet } from 'svelte/reactivity'
   import { rise } from '../lib/motion.js'
   import { downloadCsv, reportCsv } from '../lib/csv-export.js'
-  import { deleteGame, listGames, loadReport } from '../lib/reports.js'
+  import { billing, showPlan } from '../lib/billing.svelte.js'
+  import { deleteGame, hiddenGames, listGames, loadReport } from '../lib/reports.js'
 
   let { gameId = null } = $props()
 
@@ -93,7 +94,16 @@
     }
   }
 
+  // How many reports are older than the plan reads. Hidden, not deleted.
+  let hidden = $state(0)
+
   function exportCsv() {
+    // The export is built in the browser from the report already on screen, so
+    // this is the one plan feature that is a courtesy and not a lock.
+    if (billing.plan && billing.plan.plan !== 'teacher') {
+      showPlan('Exporting a report as a spreadsheet is part of the Teacher plan.')
+      return
+    }
     const stamp = new Date(report.summary.playedAt).toISOString().slice(0, 10)
     const slug = report.summary.quizTitle.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase()
     downloadCsv(`blurt-${slug || 'quiz'}-${stamp}.csv`, reportCsv(report))
@@ -105,7 +115,7 @@
       problem = ''
       try {
         if (gameId) report = await loadReport(gameId)
-        else games = await listGames()
+        else [games, hidden] = await Promise.all([listGames(), hiddenGames()])
       } catch (error) {
         problem = error.message
       } finally {
@@ -178,10 +188,22 @@
           </li>
         {/each}
       </ul>
-    {:else}
+    {:else if !hidden}
       <div class="empty">
         <p class="muted">Nothing here yet. Rooms show up once they have asked a question.</p>
         <a class="ghost" href="/host">Open a room</a>
+      </div>
+    {/if}
+
+    {#if hidden}
+      <div class="empty">
+        <p class="muted">
+          {hidden} older {hidden === 1 ? 'report is' : 'reports are'} kept but not shown: the Free plan reads the last
+          {billing.plan?.report_days ?? 30} days.
+        </p>
+        <button class="ghost" onclick={() => showPlan('The Teacher plan keeps every report open, for good.')}>
+          See the Teacher plan
+        </button>
       </div>
     {/if}
   {:else}

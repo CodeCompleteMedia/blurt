@@ -39,6 +39,8 @@ begin
 end $$;
 
 insert into auth.users (id) values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+-- Three hundred rooms is far past the free plan's five a month.
+insert into public.teacher_plans (user_id, comp) values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', true);
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}', false) \gset x
 select public.copy_sample_quiz() as quiz \gset
 select set_config('blurt.quiz', :'quiz', false) \gset x

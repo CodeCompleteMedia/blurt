@@ -251,6 +251,39 @@ under the students' feet either.
 Deleting a game deletes it and everything recorded in it — that is the right
 answer for a round someone was upset in, and it is why this one is not an archive.
 
+## Plans and billing
+
+Two plans, Free and Teacher, and the numbers on the pricing page live in exactly one place: `plan_limits()` in migration `0034`. A plan is a row in `teacher_plans` that no browser role can read or write. Every limit is checked in the database at the moment of the action, so a teacher at the console meets the same limits as one using the app.
+
+| Limit | Where it is enforced |
+|---|---|
+| Quizzes | a trigger on `quizzes`, which also covers the sample, duplicates and un-archiving |
+| Rooms a month | `create_game`, counting in `room_usage` so a deleted game does not hand a room back |
+| Students in a room | `join_game`, the larger of what the room opened with and the teacher's plan now |
+| Report history | `my_games`, `game_summary`, `game_report`, `game_players`; older games are hidden, not deleted |
+| Paired displays | `create_wall` |
+| Spreadsheet export | the app only. The export is built in the browser from a report already on screen, so there is nothing for the database to withhold |
+
+A room that is already open is never cut off, and nothing is deleted when a plan ends. `past_due` still counts as paid: the teacher keeps the plan while Stripe retries the card, for as long as the retry schedule in the Stripe dashboard says.
+
+**How a payment becomes a permission.** The Teacher button on the pricing page goes to `/host?plan=month` or `?plan=year`. The choice survives sign-up (and the trip through the inbox, on the same device), and the shell sends a signed-in teacher on to Stripe Checkout. Stripe then calls `api/billing/webhook`, which checks the signature and treats the event as a nudge only: it re-reads the customer's subscription from Stripe and copies it into `teacher_plans` with the service role key. Retries, duplicates and out-of-order events are therefore harmless. On the way back from Checkout the app calls `api/billing/sync`, which does the same read, so the plan is right on the first screen even if the webhook is late. Changing card, switching period and cancelling all happen in Stripe's Customer Portal.
+
+The functions in `api/` are the only server code in blurt and the only place the service role key is used. `npm run dev` serves them too (see `devApi` in `vite.config.js`), with the server-side variables from `.env.local`; `.env.example` lists them.
+
+**Giving someone the plan** without a subscription is one line of SQL, and the webhook never undoes it:
+
+```sql
+insert into public.teacher_plans (user_id, comp)
+select id, true from auth.users where email = 'someone@example.com'
+on conflict (user_id) do update set comp = true;
+```
+
+The account that `npm run verify:db` and `npm run load` sign in as needs this: the load test opens more rooms, with more students, than Free allows.
+
+**Trying it in the Stripe sandbox.** With the [Stripe CLI](https://docs.stripe.com/stripe-cli): `stripe listen --forward-to localhost:5173/api/billing/webhook`, put the `whsec_...` it prints in `.env.local`, and `npm run dev`. Pay with `4242 4242 4242 4242`; cancel from Manage billing; `4000 0000 0000 0341` attaches but fails when charged, which is how to see `past_due`.
+
+Deleting a teacher from `/admin` is refused while they have a live subscription, because the database cannot reach Stripe to stop it. Cancel it in Stripe first; the Plan column links to the customer.
+
 ## In a real room
 
 Phase 3 was about the things that only go wrong with thirty teenagers.

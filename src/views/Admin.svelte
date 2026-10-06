@@ -271,6 +271,7 @@
             <thead>
               <tr>
                 <th>Email</th>
+                <th>Plan</th>
                 <th>Signed up</th>
                 <th>Last sign-in</th>
                 <th class="r">Quizzes</th>
@@ -288,6 +289,24 @@
                     {#if t.is_admin}<span class="pill admin-pill">Admin</span>{/if}
                     {#if t.suspended}<span class="pill out">Suspended</span>{/if}
                     {#if !t.confirmed_at}<span class="pill wait">Unconfirmed</span>{/if}
+                  </td>
+                  <td class="plan">
+                    {#if t.stripe_customer_id}
+                      <a
+                        href="https://dashboard.stripe.com/customers/{t.stripe_customer_id}"
+                        target="_blank"
+                        rel="noopener"
+                        title="Open this customer in Stripe">{t.plan === 'teacher' ? 'Teacher' : 'Free'} ↗</a
+                      >
+                    {:else}
+                      {t.plan === 'teacher' ? 'Teacher' : 'Free'}
+                    {/if}
+                    {#if t.plan_comp}<span class="pill wait">Comp</span>{/if}
+                    {#if t.plan_status && t.plan_status !== 'active'}<span
+                        class="pill"
+                        class:out={t.plan_status === 'past_due'}
+                        class:wait={t.plan_status !== 'past_due'}>{t.plan_status.replace('_', ' ')}</span
+                      >{/if}
                   </td>
                   <td>{day(t.signed_up_at)}</td>
                   <td>{day(t.last_sign_in_at)}</td>
@@ -313,7 +332,7 @@
                 </tr>
                 {#if deleting === t.user_id}
                   <tr class="confirm-row">
-                    <td colspan="8">
+                    <td colspan="9">
                       <form class="confirm" onsubmit={(e) => { e.preventDefault(); confirmDelete(t) }}>
                         <p>
                           This deletes <strong>{t.email}</strong>, their {t.quizzes}
@@ -342,7 +361,7 @@
                   </tr>
                 {/if}
               {:else}
-                <tr><td colspan="8" class="muted">No teacher matches “{search}”.</td></tr>
+                <tr><td colspan="9" class="muted">No teacher matches “{search}”.</td></tr>
               {/each}
             </tbody>
           </table>
@@ -606,6 +625,14 @@
 
   .email {
     font-weight: 500;
+  }
+
+  .plan {
+    white-space: nowrap;
+  }
+
+  .plan a {
+    color: inherit;
   }
 
   .pill {

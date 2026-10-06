@@ -24,6 +24,13 @@ export async function listGames() {
   }))
 }
 
+/** Reports the plan does not reach: kept, but not listed or opened. */
+export async function hiddenGames() {
+  const { data, error } = await db.rpc('my_hidden_games')
+  if (error) fail(error)
+  return data ?? 0
+}
+
 export async function loadReport(gameId) {
   const [summary, questions, players] = await Promise.all([
     db.rpc('game_summary', { p_game_id: gameId }),

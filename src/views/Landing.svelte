@@ -324,7 +324,7 @@
             <li>Up to 10 paired displays</li>
             <li>Export reports as a spreadsheet</li>
           </ul>
-          <a class="plan-cta" href="/host">Start free, upgrade any time</a>
+          <a class="plan-cta" href="/host?plan={yearly ? 'year' : 'month'}">Get the Teacher plan</a>
         </article>
       </div>
 

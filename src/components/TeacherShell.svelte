@@ -7,8 +7,18 @@
   // exactly one job at a time.
   import { amAdmin } from '../lib/admin.js'
   import { auth, setPassword, signOut } from '../lib/auth.svelte.js'
+  import {
+    billing,
+    forgetIntent,
+    onShowPlan,
+    peekIntent,
+    refreshPlan,
+    startCheckout,
+    syncPlan,
+  } from '../lib/billing.svelte.js'
   import { readHost } from '../lib/session.js'
   import { setTheme, theme } from '../lib/theme.svelte.js'
+  import PlanSheet from './PlanSheet.svelte'
 
   let { current, children } = $props()
 
@@ -26,6 +36,61 @@
   $effect(() => {
     if (!userId) return
     amAdmin().then((yes) => (admin = yes))
+  })
+
+  // Plan & billing, and the two ways a teacher arrives with billing on their
+  // mind: from the pricing page wanting the Teacher plan (an intent, carried
+  // through sign-up), or back from one of Stripe's pages (?billing=...).
+  let planSheet = $state()
+  const back = new URLSearchParams(window.location.search).get('billing')
+  const intent = back ? null : peekIntent()
+  // Decided before the first paint, so a teacher on their way to Checkout sees
+  // that, and not a flash of the room they have not paid for yet.
+  let paying = $state(Boolean(intent))
+  // Not state on purpose: if this effect ever runs twice, the second run must
+  // not start a second Checkout or reopen the sheet.
+  let arrived = false
+
+  $effect(() => {
+    if (!userId || arrived) return
+    arrived = true
+    onShowPlan((note) => planSheet?.show(note))
+
+    // Spent once: a refresh must not send anyone to Checkout a second time.
+    forgetIntent()
+    if (back || intent) history.replaceState(null, '', window.location.pathname + window.location.hash)
+
+    if (intent) {
+      startCheckout(intent)
+        .then((already) => {
+          if (!already) return
+          paying = false
+          planSheet?.show('You are already on the Teacher plan.')
+        })
+        .catch((error) => {
+          paying = false
+          planSheet?.show(error.message, { failed: true })
+        })
+    } else if (back === 'cancelled') {
+      planSheet?.show('No payment was taken. You are on the Free plan, and can upgrade from here whenever you like.')
+    } else if (back) {
+      // Do not wait on the webhook: ask the server to read Stripe now, so the
+      // first screen after paying already has the plan.
+      syncPlan()
+        .catch(() => refreshPlan())
+        .then((plan) => {
+          if (back === 'done') {
+            planSheet?.show(
+              plan?.plan === 'teacher'
+                ? 'Thank you. You are on the Teacher plan.'
+                : 'Your payment is still being confirmed. This usually takes a few seconds: close this and open Plan & billing again.',
+            )
+          }
+        })
+        .catch(() => {})
+    } else {
+      refreshPlan().catch(() => {})
+    }
   })
 
   async function leave() {
@@ -126,6 +191,16 @@
           </div>
 
           <div class="group">
+            <button
+              class="item plan-item"
+              onclick={() => {
+                open = false
+                planSheet.show()
+              }}
+            >
+              Plan &amp; billing
+              {#if billing.plan}<span class="plan-pill">{billing.plan.plan === 'teacher' ? 'Teacher' : 'Free'}</span>{/if}
+            </button>
             <button class="item" onclick={changePassword}>Change password</button>
             <a class="item" href="/join" target="_blank" rel="noopener">Student join page ↗</a>
           </div>
@@ -147,9 +222,15 @@
   </nav>
 
   <div class="content">
-    {@render children()}
+    {#if paying}
+      <p class="paying" role="status">On to payment…</p>
+    {:else}
+      {@render children()}
+    {/if}
   </div>
 </div>
+
+<PlanSheet bind:this={planSheet} />
 
 <svelte:window onclick={dismiss} {onkeydown} />
 
@@ -351,6 +432,31 @@
 
   .item:hover {
     background: var(--stage-high);
+  }
+
+  .plan-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .plan-pill {
+    padding: 1px 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-pill);
+    color: var(--ink-muted);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .paying {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    margin: 0;
+    color: var(--ink-muted);
   }
 
   .theme {

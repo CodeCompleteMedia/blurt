@@ -1,5 +1,7 @@
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 
 /**
  * Preload the fonts the app actually uses.
@@ -47,9 +49,59 @@ function preloadFonts(match = /latin[^/]*\.woff2$/, skip = [/bungee-inline/]) {
   }
 }
 
+/**
+ * Serve api/ during `npm run dev`.
+ *
+ * In production these files are Vercel Functions. Locally nothing runs them, so
+ * Checkout could only be tried on a deployment. This hands each /api request to
+ * the same file with the same Web-standard Request, and gives the handlers the
+ * server-side variables from .env.local, which Vite otherwise keeps to itself.
+ */
+function devApi() {
+  return {
+    name: 'blurt-dev-api',
+    apply: 'serve',
+    configureServer(server) {
+      for (const [name, value] of Object.entries(loadEnv('development', process.cwd(), ''))) {
+        process.env[name] ??= value
+      }
+      server.middlewares.use(async (req, res, next) => {
+        const path = new URL(req.url, 'http://localhost').pathname
+        // Lowercase names only, and nothing under _lib: those are not routes.
+        if (!/^\/api(\/[a-z][a-z-]*)+$/.test(path)) return next()
+        const file = fileURLToPath(new URL(`.${path}.js`, import.meta.url))
+        try {
+          const handler = existsSync(file) && (await server.ssrLoadModule(file))[req.method]
+          if (!handler) {
+            res.statusCode = 404
+            return res.end()
+          }
+          const chunks = []
+          for await (const chunk of req) chunks.push(chunk)
+          const headers = Object.entries(req.headers).filter(([, value]) => typeof value === 'string')
+          const response = await handler(
+            new Request(`http://${req.headers.host}${req.url}`, {
+              method: req.method,
+              headers,
+              body: ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(chunks),
+            }),
+          )
+          res.statusCode = response.status
+          response.headers.forEach((value, name) => res.setHeader(name, value))
+          res.end(Buffer.from(await response.arrayBuffer()))
+        } catch (error) {
+          console.error(error)
+          res.statusCode = 500
+          res.end()
+        }
+      })
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [svelte(), preloadFonts()],
+  plugins: [svelte(), preloadFonts(), devApi()],
   // The prerender step reads this to find the landing page's chunk and CSS.
   build: { manifest: true },
 })

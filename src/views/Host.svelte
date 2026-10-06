@@ -4,6 +4,7 @@
   // It holds the host token, which is why it is the machine the room cannot see,
   // and it is the only place `answers` is legible: the roster below comes from a
   // function gated on that token.
+  import { billing } from '../lib/billing.svelte.js'
   import {
     advanceGame,
     blurter,
@@ -139,8 +140,12 @@
     const clock = left == null ? null : { left, total: limit / 1000 + (game.extra_seconds ?? 0) }
 
     if (phase === 'lobby') {
+      // Students past the cap are told "that room is full"; without this the
+      // teacher is the only one in the room who does not know why.
+      const cap = billing.plan?.plan === 'free' ? billing.plan.player_limit : null
+      const count = cap && roster.length >= cap ? `${roster.length} in: the Free plan's room is full.` : `${roster.length} in.`
       return roster.length
-        ? { text: `${roster.length} in.`, key: 'Space', does: 'starts the first question.' }
+        ? { text: count, key: 'Space', does: 'starts the first question.' }
         : { text: 'Waiting for students to join.' }
     }
     if ((phase === 'recall' || phase === 'question_open') && held) {
