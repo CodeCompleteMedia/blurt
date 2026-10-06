@@ -79,8 +79,8 @@ begin
   end if;
   perform set_config('request.jwt.claims', format('{"sub":"%s"}', b), false);
   select * into r from public.my_plan();
-  if r.plan <> 'free' or r.status is not null or r.has_customer or r.quiz_limit <> 3 or r.room_limit <> 5
-     or r.player_limit <> 15 or r.report_days <> 30 or r.display_limit <> 1 then
+  if r.plan <> 'free' or r.status is not null or r.has_customer or r.quiz_limit <> 2 or r.room_limit <> 3
+     or r.player_limit <> 40 or r.report_days is not null or r.display_limit <> 1 then
     raise exception 'free teacher sees %', r;
   end if;
 
@@ -123,18 +123,17 @@ declare
   v_quiz uuid;
   n int;
 begin
-  -- Three, by each of the three routes in.
+  -- The sample, and one of their own.
   perform pg_temp.expect(pg_temp.as_teacher(b, 'select public.copy_sample_quiz()'), 'ok', 'free quiz 1 (sample)');
   perform pg_temp.expect(pg_temp.as_teacher(b, 'insert into public.quizzes (title) values (''Two'')'), 'ok', 'free quiz 2 (insert)');
   select id into v_quiz from public.quizzes where owner_id = b::uuid and title = 'Two';
-  perform pg_temp.expect(pg_temp.as_teacher(b, format('select public.duplicate_quiz(%L)', v_quiz)), 'ok', 'free quiz 3 (duplicate)');
 
-  -- 23514 is check_violation. The fourth is refused by every route.
-  perform pg_temp.expect(pg_temp.as_teacher(b, 'insert into public.quizzes (title) values (''Four'')'), '23514', 'fourth quiz by insert');
-  perform pg_temp.expect(pg_temp.as_teacher(b, 'select public.copy_sample_quiz()'), '23514', 'fourth quiz by sample');
-  perform pg_temp.expect(pg_temp.as_teacher(b, format('select public.duplicate_quiz(%L)', v_quiz)), '23514', 'fourth quiz by duplicate');
+  -- 23514 is check_violation. A third is refused by every route in.
+  perform pg_temp.expect(pg_temp.as_teacher(b, 'insert into public.quizzes (title) values (''Four'')'), '23514', 'third quiz by insert');
+  perform pg_temp.expect(pg_temp.as_teacher(b, 'select public.copy_sample_quiz()'), '23514', 'third quiz by sample');
+  perform pg_temp.expect(pg_temp.as_teacher(b, format('select public.duplicate_quiz(%L)', v_quiz)), '23514', 'third quiz by duplicate');
 
-  -- Archiving makes room; restoring the archived one is then the fourth.
+  -- Archiving makes room; restoring the archived one is then the third.
   perform pg_temp.expect(pg_temp.as_teacher(b, format('update public.quizzes set archived_at = now() where id = %L', v_quiz)), 'ok', 'archiving');
   perform pg_temp.expect(pg_temp.as_teacher(b, 'insert into public.quizzes (title) values (''Four'')'), 'ok', 'a quiz in the freed place');
   perform pg_temp.expect(pg_temp.as_teacher(b, format('update public.quizzes set archived_at = null where id = %L', v_quiz)), '23514', 'restoring past the limit');
@@ -142,13 +141,13 @@ begin
   perform pg_temp.expect(pg_temp.as_teacher(b, 'update public.quizzes set title = ''Renamed'' where title = ''Four'''), 'ok', 'renaming at the limit');
 
   select count(*) into n from public.quizzes where owner_id = b::uuid and archived_at is null;
-  if n <> 3 then raise exception 'free teacher holds % live quizzes, expected 3', n; end if;
+  if n <> 2 then raise exception 'free teacher holds % live quizzes, expected 2', n; end if;
 
-  -- The other free teacher's three are their own: B's do not count against C.
-  for i in 1..3 loop
+  -- The other free teacher's two are their own: B's do not count against C.
+  for i in 1..2 loop
     perform pg_temp.expect(pg_temp.as_teacher(c, 'insert into public.quizzes (title) values (''Theirs'')'), 'ok', 'another free teacher''s quiz');
   end loop;
-  perform pg_temp.expect(pg_temp.as_teacher(c, 'insert into public.quizzes (title) values (''Theirs'')'), '23514', 'another free teacher''s fourth');
+  perform pg_temp.expect(pg_temp.as_teacher(c, 'insert into public.quizzes (title) values (''Theirs'')'), '23514', 'another free teacher''s third');
 
   -- The paid teacher is not counted at all.
   for i in 1..6 loop
@@ -156,17 +155,17 @@ begin
   end loop;
   perform pg_temp.expect(pg_temp.as_teacher(a, 'select public.copy_sample_quiz()'), 'ok', 'paid sample');
 
-  raise notice 'ok  three quizzes on Free by insert, sample, duplicate and restore; no limit when paid';
+  raise notice 'ok  two quizzes on Free by insert, sample, duplicate and restore; no limit when paid';
 end $$;
 
--- ------------------------------------------------------------------- rooms ---
+-- ------------------------------------------------------------------- games ---
 do $$
 declare
   a constant text := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
   b constant text := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
   c constant text := 'cccccccc-cccc-cccc-cccc-cccccccccccc';
   qa uuid; qb uuid; qc uuid;
-  v_game uuid;
+  v_host uuid; v_game uuid;
   n int;
 begin
   select id into qa from public.quizzes z where z.owner_id = a::uuid and exists (select 1 from public.questions q where q.quiz_id = z.id) limit 1;
@@ -177,59 +176,87 @@ begin
   select qc, position, kind, text, choices, correct_index, accepted, seconds, recall_seconds, blurt_enabled
   from public.questions where quiz_id = qb;
 
-  for i in 1..5 loop
-    perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.create_game(%L)', qb)), 'ok', 'free room ' || i);
-  end loop;
-  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.create_game(%L)', qb)), '23514', 'sixth free room');
+  -- Opening a room to look around costs nothing, and a second waiting room
+  -- replaces the first.
+  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.create_game(%L)', qb)), 'ok', 'a free room, opened and left');
+  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.create_game(%L)', qb)), 'ok', 'a second free room');
+  select count(*) into n from public.games g where g.owner_id = b::uuid and g.closed_at is null;
+  if n <> 1 then raise exception 'a free teacher has % waiting rooms open, expected 1', n; end if;
+  select coalesce(sum(rooms), 0) into n from public.room_usage where user_id = b::uuid;
+  if n <> 0 then raise exception 'rooms nobody played were counted: %', n; end if;
 
-  -- Deleting a game does not hand the room back.
-  select id into v_game from public.games where owner_id = b::uuid limit 1;
+  -- Three games: each counts when its first question is asked, and only once.
+  for i in 1..3 loop
+    if i > 1 then
+      perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.create_game(%L)', qb)), 'ok', 'free game ' || i);
+    end if;
+    select s.host_token into strict v_host
+    from public.games g join public.game_secrets s on s.game_id = g.id
+    where g.owner_id = b::uuid and g.question_index < 0 and g.closed_at is null;
+    perform pg_temp.expect(pg_temp.as_teacher(b, format('select public.advance_game(%L)', v_host)), 'ok', 'starting free game ' || i);
+    select sum(rooms) into n from public.room_usage where user_id = b::uuid;
+    if n <> i then raise exception 'after starting game %, % are counted', i, n; end if;
+  end loop;
+
+  -- 23514 is check_violation. The fourth needs the Teacher plan.
+  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.create_game(%L)', qb)), '23514', 'a fourth free game');
+
+  -- Deleting a game does not hand it back, and nor does a new month.
+  select id into v_game from public.games where owner_id = b::uuid and question_index >= 0 limit 1;
   perform pg_temp.expect(pg_temp.as_teacher(b, format('select public.delete_game(%L)', v_game)), 'ok', 'deleting a game');
-  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.create_game(%L)', qb)), '23514', 'a room after deleting one');
-
-  -- A refused room was not counted, and the count is B's alone.
-  select rooms into n from public.room_usage where user_id = b::uuid;
-  if n <> 5 then raise exception 'B''s month counts % rooms, expected 5', n; end if;
-  perform pg_temp.expect(pg_temp.as_teacher(c, format('select * from public.create_game(%L)', qc)), 'ok', 'another free teacher''s first room');
-
-  -- Last month's rooms are last month's.
+  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.create_game(%L)', qb)), '23514', 'a game after deleting one');
   update public.room_usage set month = (month - interval '1 month')::date where user_id = b::uuid;
-  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.create_game(%L)', qb)), 'ok', 'a room in a new month');
+  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.create_game(%L)', qb)), '23514', 'a game in a new month');
 
-  for i in 1..8 loop
-    perform pg_temp.expect(pg_temp.as_teacher(a, format('select * from public.create_game(%L)', qa)), 'ok', 'paid room ' || i);
+  -- B's three are B's: the other free teacher has all of theirs. Left in the
+  -- lobby for the students below.
+  perform pg_temp.expect(pg_temp.as_teacher(c, format('select * from public.create_game(%L)', qc)), 'ok', 'another free teacher''s room');
+
+  -- The paid teacher is not counted against anything, and keeps their lobbies.
+  for i in 1..5 loop
+    perform pg_temp.expect(pg_temp.as_teacher(a, format('select * from public.create_game(%L)', qa)), 'ok', 'paid game ' || i);
+    select s.host_token into strict v_host
+    from public.games g join public.game_secrets s on s.game_id = g.id
+    where g.owner_id = a::uuid and g.question_index < 0 and g.closed_at is null;
+    perform pg_temp.expect(pg_temp.as_teacher(a, format('select public.advance_game(%L)', v_host)), 'ok', 'starting paid game ' || i);
   end loop;
+  perform pg_temp.expect(pg_temp.as_teacher(a, format('select * from public.create_game(%L)', qa)), 'ok', 'a paid waiting room');
+  perform pg_temp.expect(pg_temp.as_teacher(a, format('select * from public.create_game(%L)', qa)), 'ok', 'a second paid waiting room');
+  select count(*) into n from public.games g where g.owner_id = a::uuid and g.question_index < 0 and g.closed_at is null;
+  if n <> 2 then raise exception 'a paid teacher has % waiting rooms, expected both kept', n; end if;
 
-  raise notice 'ok  five rooms a month on Free, not won back by deleting; no limit when paid';
+  raise notice 'ok  three games ever on Free, counted at the first question, not won back by deleting; no limit when paid';
 end $$;
 
 -- ------------------------------------------------------ students in a room ---
 do $$
 declare
   a constant uuid := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-  b constant uuid := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
-  code_a text; code_b text;
+  c constant uuid := 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+  code_a text; code_c text;
   full_at int;
   v_cap int;
 begin
-  select g.code, g.player_cap into code_a, v_cap from public.games g where g.owner_id = a order by g.created_at desc limit 1;
+  select g.code, g.player_cap into code_a, v_cap from public.games g
+  where g.owner_id = a and g.question_index < 0 and g.closed_at is null limit 1;
   if v_cap <> 60 then raise exception 'a paid room opened with room for %, expected 60', v_cap; end if;
-  select g.code, g.player_cap into code_b, v_cap from public.games g where g.owner_id = b order by g.created_at desc limit 1;
-  if v_cap <> 15 then raise exception 'a free room opened with room for %, expected 15', v_cap; end if;
+  select g.code, g.player_cap into code_c, v_cap from public.games g
+  where g.owner_id = c and g.question_index < 0 and g.closed_at is null limit 1;
+  if v_cap <> 40 then raise exception 'a free room opened with room for %, expected 40', v_cap; end if;
 
   -- Students join with the anon key, as they do from a phone.
   perform set_config('request.jwt.claims', '', false);
   set local role anon;
   full_at := null;
-  for i in 1..20 loop
+  for i in 1..45 loop
     begin
-      perform * from public.join_game(code_b, 'Student ' || chr(64 + i));
+      perform * from public.join_game(code_c, 'Student ' || chr(64 + (i - 1) / 26 + 1) || chr(65 + (i - 1) % 26));
     exception when check_violation then
       full_at := i; exit;
     end;
   end loop;
   reset role;
-  if full_at is distinct from 16 then raise exception 'a free room filled at student %, expected the 16th to be refused', full_at; end if;
+  if full_at is distinct from 41 then raise exception 'a free room filled at student %, expected the 41st to be refused', full_at; end if;
 
   set local role anon;
   for i in 1..20 loop
@@ -238,9 +265,9 @@ begin
   reset role;
 
   -- The teacher of the full room upgrades: the next student gets in, same room.
-  insert into public.teacher_plans (user_id, status) values (b, 'active');
+  insert into public.teacher_plans (user_id, status) values (c, 'active');
   set local role anon;
-  perform * from public.join_game(code_b, 'Sixteenth');
+  perform * from public.join_game(code_c, 'Forty First');
   reset role;
 
   -- The paying teacher lapses mid-lesson: their open room keeps its sixty.
@@ -249,7 +276,7 @@ begin
   perform * from public.join_game(code_a, 'Latecomer');
   reset role;
 
-  raise notice 'ok  fifteen students on Free and sixty when paid; an upgrade opens the room, a lapse does not shrink it';
+  raise notice 'ok  forty students on Free and sixty when paid; an upgrade opens the room, a lapse does not shrink it';
 end $$;
 
 -- ------------------------------------------------- a lapse, and coming back ---
@@ -260,14 +287,21 @@ declare
   code_a text; host_a uuid;
   n int;
 begin
-  -- A is now cancelled, with seven quizzes and eight rooms this month.
+  -- A is now cancelled, with seven quizzes, five games played, and a room of
+  -- twenty-one students waiting in the lobby.
   select g.code, s.host_token into code_a, host_a
   from public.games g join public.game_secrets s on s.game_id = g.id
-  where g.owner_id = a::uuid order by g.created_at desc limit 1;
+  join public.players p on p.game_id = g.id
+  where g.owner_id = a::uuid and g.question_index < 0 and g.closed_at is null limit 1;
   select quiz_id into qa from public.games where code = code_a;
 
+  -- They have had more than Free's three games, so the next room is refused,
+  -- and so is the next quiz. Being refused closed nothing.
   perform pg_temp.expect(pg_temp.as_teacher(a, format('select * from public.create_game(%L)', qa)), '23514', 'the next room after a lapse');
   perform pg_temp.expect(pg_temp.as_teacher(a, 'insert into public.quizzes (title) values (''One more'')'), '23514', 'the next quiz after a lapse');
+  if (select closed_at from public.games where code = code_a) is not null then
+    raise exception 'a refused room closed the one that was waiting';
+  end if;
 
   -- The room already open runs on: the host still reads it and can start it.
   perform pg_temp.expect(pg_temp.as_teacher(a, format('select * from public.host_question(%L)', host_a)), 'ok', 'reading the open room after a lapse');
@@ -289,42 +323,24 @@ end $$;
 do $$
 declare
   b constant text := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
-  v_old uuid; v_new uuid;
+  v_old uuid;
   n int;
 begin
-  -- B paid in the last block; back to Free, with one old game and one recent.
-  delete from public.teacher_plans where user_id = b::uuid;
-  -- Opened in one transaction, so they share a timestamp: pick two by id.
-  select id into v_old from public.games where owner_id = b::uuid order by id limit 1;
-  select id into v_new from public.games where owner_id = b::uuid and id <> v_old order by id limit 1;
-  update public.games set question_index = 0 where id in (v_old, v_new);
-  update public.games set created_at = now() - interval '31 days' where id = v_old;
+  -- Free keeps the reports of its three games, however old. The machinery for
+  -- a plan that reads only so far back (0034) is still there; no plan uses it.
+  select id into v_old from public.games where owner_id = b::uuid and question_index >= 0 order by id limit 1;
+  update public.games set created_at = now() - interval '400 days' where id = v_old;
 
   perform set_config('request.jwt.claims', format('{"sub":"%s"}', b), false);
   select count(*) into n from public.my_games() where game_id = v_old;
-  if n <> 0 then raise exception 'a 31-day-old game is listed on Free'; end if;
-  select count(*) into n from public.my_games() where game_id = v_new;
-  if n <> 1 then raise exception 'a recent game is missing on Free'; end if;
-  if public.my_hidden_games() <> 1 then raise exception 'expected one hidden game, got %', public.my_hidden_games(); end if;
+  if n <> 1 then raise exception 'a free teacher''s old game is not listed'; end if;
+  if public.my_hidden_games() <> 0 then raise exception 'Free is hiding % games', public.my_hidden_games(); end if;
 
-  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.game_summary(%L)', v_old)), '23514', 'old summary on Free');
-  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.game_report(%L)', v_old)), '23514', 'old report on Free');
-  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.game_players(%L)', v_old)), '23514', 'old students on Free');
-  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.game_report(%L)', v_new)), 'ok', 'recent report on Free');
+  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.game_summary(%L)', v_old)), 'ok', 'old summary on Free');
+  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.game_report(%L)', v_old)), 'ok', 'old report on Free');
+  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.game_players(%L)', v_old)), 'ok', 'old students on Free');
 
-  -- Hidden, not gone: paying brings it back.
-  insert into public.teacher_plans (user_id, status) values (b::uuid, 'active');
-  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.game_report(%L)', v_old)), 'ok', 'old report when paid');
-  perform pg_temp.expect(pg_temp.as_teacher(b, format('select * from public.game_players(%L)', v_old)), 'ok', 'old students when paid');
-  perform set_config('request.jwt.claims', format('{"sub":"%s"}', b), false);
-  select count(*) into n from public.my_games() where game_id = v_old;
-  if n <> 1 or public.my_hidden_games() <> 0 then raise exception 'the old game did not come back with the plan'; end if;
-
-  -- And a teacher on Free can still delete what they cannot open.
-  delete from public.teacher_plans where user_id = b::uuid;
-  perform pg_temp.expect(pg_temp.as_teacher(b, format('select public.delete_game(%L)', v_old)), 'ok', 'deleting a hidden game');
-
-  raise notice 'ok  Free reads thirty days of reports; older ones are hidden, deletable, and back on upgrade';
+  raise notice 'ok  Free keeps the reports of the games it played';
 end $$;
 
 -- ---------------------------------------------------------------- displays ---

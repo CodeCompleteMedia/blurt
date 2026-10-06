@@ -253,16 +253,18 @@ answer for a round someone was upset in, and it is why this one is not an archiv
 
 ## Plans and billing
 
-Two plans, Free and Teacher, and the numbers on the pricing page live in exactly one place: `plan_limits()` in migration `0034`. A plan is a row in `teacher_plans` that no browser role can read or write. Every limit is checked in the database at the moment of the action, so a teacher at the console meets the same limits as one using the app.
+Two plans, Free and Teacher, and the numbers on the pricing page live in exactly one place: `plan_limits()`, last set in migration `0035`. A plan is a row in `teacher_plans` that no browser role can read or write. Every limit is checked in the database at the moment of the action, so a teacher at the console meets the same limits as one using the app.
 
 | Limit | Where it is enforced |
 |---|---|
+| Games | `create_game`, against a lifetime tally in `room_usage` that a deleted game does not come off |
 | Quizzes | a trigger on `quizzes`, which also covers the sample, duplicates and un-archiving |
-| Rooms a month | `create_game`, counting in `room_usage` so a deleted game does not hand a room back |
 | Students in a room | `join_game`, the larger of what the room opened with and the teacher's plan now |
-| Report history | `my_games`, `game_summary`, `game_report`, `game_players`; older games are hidden, not deleted |
+| Report history | `my_games`, `game_summary`, `game_report`, `game_players`. No plan limits it today (`report_days` is null for both), but the check is in place |
 | Paired displays | `create_wall` |
 | Spreadsheet export | the app only. The export is built in the browser from a report already on screen, so there is nothing for the database to withhold |
+
+Free is a way to see the game in action, not an account to live on (`0035`): three games ever, with up to 40 students, on two quizzes (the sample and one of the teacher's own), reports kept. A game counts when its first question is asked, so opening a room to look around costs nothing; to stop that being a loophole, a Free teacher has one waiting room at a time, and opening another closes the first. After the third game, quizzes stay editable and reports readable, and opening a room needs the Teacher plan.
 
 A room that is already open is never cut off, and nothing is deleted when a plan ends. `past_due` still counts as paid: the teacher keeps the plan while Stripe retries the card, for as long as the retry schedule in the Stripe dashboard says.
 
@@ -278,7 +280,7 @@ select id, true from auth.users where email = 'someone@example.com'
 on conflict (user_id) do update set comp = true;
 ```
 
-The account that `npm run verify:db` and `npm run load` sign in as needs this: the load test opens more rooms, with more students, than Free allows.
+The account that `npm run verify:db` and `npm run load` sign in as needs this: the load test plays more games, with more students, than Free allows.
 
 **Trying it in the Stripe sandbox.** With the [Stripe CLI](https://docs.stripe.com/stripe-cli): `stripe listen --forward-to localhost:5173/api/billing/webhook`, put the `whsec_...` it prints in `.env.local`, and `npm run dev`. Pay with `4242 4242 4242 4242`; cancel from Manage billing; `4000 0000 0000 0341` attaches but fails when charged, which is how to see `past_due`.
 

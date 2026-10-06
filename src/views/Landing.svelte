@@ -296,12 +296,12 @@
         <article class="plan" aria-labelledby="plan-free">
           <h3 id="plan-free">Free</h3>
           <p class="price"><span class="amount">$0</span></p>
-          <p class="for">For trying blurt with a class or two.</p>
+          <p class="for">For seeing blurt in action with your class.</p>
           <ul>
-            <li>3 quizzes</li>
-            <li>5 rooms a month</li>
-            <li>Up to 15 students in a room</li>
-            <li>Reports for the last 30 days</li>
+            <li>3 full games</li>
+            <li>Up to 40 students in a room</li>
+            <li>The sample quiz, and one of your own</li>
+            <li>A report after every game</li>
             <li>1 paired display</li>
           </ul>
           <a class="plan-cta quiet-cta" href="/host">Start free</a>
@@ -317,8 +317,8 @@
             {yearly ? 'Works out to $6 a month, billed once a year.' : 'Billed monthly. Cancel any time.'}
           </p>
           <ul>
+            <li>Unlimited games</li>
             <li>Unlimited quizzes</li>
-            <li>Unlimited rooms</li>
             <li>Up to 60 students in a room</li>
             <li>Every report, kept for good</li>
             <li>Up to 10 paired displays</li>

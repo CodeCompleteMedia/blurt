@@ -62,7 +62,7 @@
         <strong class="name">{paid ? 'Teacher' : 'Free'}</strong>
         <span class="muted">
           {#if !paid}
-            Free for as long as you like.
+            {plan.room_limit} full games with your class, to see blurt in action.
           {:else if plan.comp && !plan.status}
             On the house. Nothing to pay.
           {:else if plan.status === 'past_due'}
@@ -87,8 +87,10 @@
       {/if}
 
       <dl>
+        {#if plan.room_limit != null}
+          <div><dt>Games played</dt><dd>{of(Math.min(plan.rooms_used, plan.room_limit), plan.room_limit)}</dd></div>
+        {/if}
         <div><dt>Quizzes</dt><dd>{of(plan.quizzes, plan.quiz_limit)}</dd></div>
-        <div><dt>Rooms this month</dt><dd>{of(plan.rooms_this_month, plan.room_limit)}</dd></div>
         <div><dt>Students in a room</dt><dd>up to {plan.player_limit}</dd></div>
         <div><dt>Reports</dt><dd>{plan.report_days == null ? 'kept for good' : `last ${plan.report_days} days`}</dd></div>
         <div><dt>Paired displays</dt><dd>up to {plan.display_limit}</dd></div>
@@ -99,8 +101,8 @@
         <div class="upgrade">
           <span class="eyebrow">Teacher plan</span>
           <p class="muted small">
-            Unlimited quizzes and rooms, up to 60 students in a room, every report kept, up to 10 displays, and
-            spreadsheet export.
+            Unlimited games and quizzes, up to 60 students in a room, up to 10 displays, and spreadsheet export.
+            Everything you have made so far comes with you.
           </p>
           <div class="seg" role="group" aria-label="Billing period">
             <button aria-pressed={!yearly} onclick={() => (yearly = false)}>$8 a month</button>
