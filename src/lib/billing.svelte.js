@@ -98,6 +98,34 @@ export function forgetIntent() {
   }
 }
 
+/**
+ * Whether this tab is the one to go to Checkout. Confirming an email address
+ * can leave two tabs signed in at the same moment, the one the link opened and
+ * the one that was waiting, and both know what the teacher came to buy. The
+ * first to ask gets it; the other just opens the app. Two Checkout pages for
+ * one teacher is how someone ends up paying twice.
+ */
+const CLAIM = 'blurt:checkout-claimed'
+
+export function claimCheckout() {
+  try {
+    if (Date.now() - Number(localStorage.getItem(CLAIM) ?? 0) < 60 * 1000) return false
+    localStorage.setItem(CLAIM, String(Date.now()))
+  } catch {
+    // No storage, so no second tab could have left a claim either.
+  }
+  return true
+}
+
+/** Back from Stripe: the trip is over, so the next one may start at once. */
+export function releaseCheckout() {
+  try {
+    localStorage.removeItem(CLAIM)
+  } catch {
+    // Nothing was claimed, then.
+  }
+}
+
 // --------------------------------------------------------------- the sheet --
 // Plan & billing lives in the shell; a page that wants it opened (a report
 // asking for an export, say) calls showPlan with a line saying why.

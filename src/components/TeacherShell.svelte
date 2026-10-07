@@ -9,10 +9,12 @@
   import { auth, setPassword, signOut } from '../lib/auth.svelte.js'
   import {
     billing,
+    claimCheckout,
     forgetIntent,
     onShowPlan,
     peekIntent,
     refreshPlan,
+    releaseCheckout,
     startCheckout,
     syncPlan,
   } from '../lib/billing.svelte.js'
@@ -43,7 +45,8 @@
   // through sign-up), or back from one of Stripe's pages (?billing=...).
   let planSheet = $state()
   const back = new URLSearchParams(window.location.search).get('billing')
-  const intent = back ? null : peekIntent()
+  const wanted = back ? null : peekIntent()
+  const intent = wanted && claimCheckout() ? wanted : null
   // Decided before the first paint, so a teacher on their way to Checkout sees
   // that, and not a flash of the room they have not paid for yet.
   let paying = $state(Boolean(intent))
@@ -58,7 +61,8 @@
 
     // Spent once: a refresh must not send anyone to Checkout a second time.
     forgetIntent()
-    if (back || intent) history.replaceState(null, '', window.location.pathname + window.location.hash)
+    if (back) releaseCheckout()
+    if (back || wanted) history.replaceState(null, '', window.location.pathname + window.location.hash)
 
     if (intent) {
       startCheckout(intent)

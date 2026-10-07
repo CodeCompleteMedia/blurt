@@ -38,25 +38,30 @@ export async function signIn(email, password) {
 // project's "Site URL", which is http://localhost:3000 until someone changes it —
 // so the first teacher to sign up gets bounced to a server that does not exist.
 // The address still has to be on the project's redirect allow-list to be honoured.
-const landing = () => `${window.location.origin}/host`
+//
+// `plan` is 'month' or 'year' for someone signing up to buy the Teacher plan.
+// It rides in the link itself, so whichever browser or device opens the email
+// goes on to Checkout; the allow-list entry needs a wildcard for that
+// (https://example.com/**), or Supabase treats the longer address as unknown.
+const landing = (plan) => `${window.location.origin}/host${plan ? `?plan=${plan}` : ''}`
 
 /** Resolves to true when the account still needs its email confirmed. */
-export async function signUp(email, password) {
+export async function signUp(email, password, plan) {
   const { data, error } = await db.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo: landing() },
+    options: { emailRedirectTo: landing(plan) },
   })
   if (error) throw new Error(error.message)
   return !data.session
 }
 
 /** A fresh confirmation link, for one that expired or was eaten by a mail scanner. */
-export async function resendConfirmation(email) {
+export async function resendConfirmation(email, plan) {
   const { error } = await db.auth.resend({
     type: 'signup',
     email,
-    options: { emailRedirectTo: landing() },
+    options: { emailRedirectTo: landing(plan) },
   })
   if (error) throw new Error(error.message)
 }

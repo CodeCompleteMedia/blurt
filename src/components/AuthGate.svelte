@@ -17,11 +17,19 @@
 
   // Arriving from the Teacher plan on the pricing page: /host?plan=month|year.
   // Whoever gets through this gate is sent on to Checkout by the shell.
-  const wanted = intentInAddress()
+  const arrivedWanting = intentInAddress()
+  let wanted = $state(arrivedWanting)
+
+  // The last chance to choose yearly before Stripe. The address is rewritten
+  // too, because the address is what the shell reads on the way to Checkout.
+  function bill(interval) {
+    wanted = interval
+    history.replaceState(null, '', `${window.location.pathname}?plan=${interval}${window.location.hash}`)
+  }
 
   // in | up | reset — the third asks only for an address and sends a link.
   // Someone who came to buy is most likely new, so they start on sign-up.
-  let mode = $state(wanted ? 'up' : 'in')
+  let mode = $state(arrivedWanting ? 'up' : 'in')
   let email = $state('')
   let password = $state('')
   let again = $state('')
@@ -45,8 +53,8 @@
   async function resend() {
     problem = ''
     try {
-      await resendConfirmation(email.trim())
-      notice = 'A fresh confirmation link is on its way. Open it on this device.'
+      await resendConfirmation(email.trim(), wanted)
+      notice = 'A fresh confirmation link is on its way.'
       unconfirmed = false
     } catch (error) {
       problem = error.message
@@ -69,14 +77,12 @@
         notice = 'If that address has an account, a reset link is on its way. Open it on this device.'
         mode = 'in'
       } else {
-        // The confirmation link opens a new tab with no ?plan= on it, so the
-        // choice is kept on this device for the trip through the inbox.
+        // The link carries the plan; this is the fallback for a project
+        // whose allow-list sends the link to the bare /host instead.
         if (wanted) rememberIntent(wanted)
-        if (await signUp(email.trim(), password)) {
-          notice = wanted
-            ? 'Check your inbox to confirm the address. Open the link on this device and payment comes next.'
-            : 'Check your inbox to confirm the address, then sign in.'
-          mode = 'in'
+        if (await signUp(email.trim(), password, wanted)) {
+          notice = ''
+          waiting = true
         }
       }
     } catch (error) {
@@ -85,6 +91,17 @@
     } finally {
       busy = false
     }
+  }
+
+  // Between "Create account" and the confirmation link being clicked. There
+  // is nothing more to do on this page: the link in the email carries the plan
+  // and goes on to Checkout by itself, in whatever browser opens it.
+  let waiting = $state(false)
+
+  function startOver() {
+    waiting = false
+    password = ''
+    mode = 'up'
   }
 
   // The recovery link signed them in; this is the only thing they can do with
@@ -154,6 +171,30 @@
   </main>
 {:else if auth.user}
   {@render children()}
+{:else if waiting}
+  <main class="surface gate">
+    <div class="card">
+      <h1 class="wordmark">blurt!</h1>
+      <h2>Check your inbox</h2>
+      <p class="muted">
+        We sent a link to <strong>{email.trim()}</strong>. Click it to confirm the address.
+      </p>
+      <p class="wanted solo">
+        {#if wanted}
+          The link takes you on to payment (Teacher plan, {wanted === 'year' ? '$72 a year' : '$8 a month'}) and then
+          into blurt. You can close this page.
+        {:else}
+          The link takes you straight into blurt. You can close this page.
+        {/if}
+      </p>
+
+      {#if problem}<p class="problem" role="alert">{problem}</p>{/if}
+      {#if notice}<p class="notice" role="status">{notice}</p>{/if}
+
+      <button type="button" class="switch" onclick={resend}>Send the link again</button>
+      <button type="button" class="switch" onclick={startOver}>Use a different address</button>
+    </div>
+  </main>
 {:else}
   <main class="surface gate">
     <form class="card" onsubmit={submit}>
@@ -166,10 +207,24 @@
             : 'Create a teacher account.'}
       </p>
       {#if wanted && mode !== 'reset'}
-        <p class="wanted">
-          Teacher plan, {wanted === 'year' ? '$72 a year' : '$8 a month'}.
-          {mode === 'up' ? 'Create your account, then pay on the next screen.' : 'Sign in, then pay on the next screen.'}
-        </p>
+        <div class="wanted">
+          <p>
+            <strong>Teacher plan.</strong>
+            {mode === 'up' ? 'Create your account, then pay on the next screen.' : 'Sign in, then pay on the next screen.'}
+          </p>
+          <div class="seg" role="group" aria-label="Billing period">
+            <button type="button" aria-pressed={wanted === 'month'} onclick={() => bill('month')}>$8 a month</button>
+            <button type="button" aria-pressed={wanted === 'year'} onclick={() => bill('year')}>$72 a year</button>
+          </div>
+          <p class="saving" class:saved={wanted === 'year'}>
+            {#if wanted === 'year'}
+              You save $24 a year: it works out to $6 a month.
+            {:else}
+              Twelve months this way is $96. Yearly is $72, which saves you $24.
+              <button type="button" class="inline" onclick={() => bill('year')}>Switch to yearly</button>
+            {/if}
+          </p>
+        </div>
       {/if}
 
       <label for="auth-email">Email</label>
@@ -258,6 +313,11 @@
     text-align: center;
   }
 
+  h2 {
+    font-size: 22px;
+    text-align: center;
+  }
+
   .muted {
     margin: 0 0 8px;
     color: var(--ink-muted);
@@ -265,13 +325,63 @@
   }
 
   .wanted {
+    display: grid;
+    gap: 8px;
     margin: 0 0 8px;
-    padding: 10px 12px;
+    padding: 12px;
     border: 1px solid var(--line-strong);
     border-radius: 8px;
     font-size: 14px;
     line-height: 1.5;
     text-align: center;
+  }
+
+  .wanted p {
+    margin: 0;
+  }
+
+  .wanted.solo {
+    display: block;
+  }
+
+  .seg {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+  }
+
+  .seg button {
+    padding: 8px 0;
+    border-radius: var(--radius-pill);
+    color: var(--ink-muted);
+    font-size: 14px;
+  }
+
+  .seg button[aria-pressed='true'] {
+    background: var(--stage-high);
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .saving {
+    color: var(--ink-muted);
+    font-size: 13px;
+  }
+
+  /* Ink, not the green used for borders: at this size the green is too faint
+     to read on the light theme. */
+  .saving.saved {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .inline {
+    color: var(--ink);
+    font-size: inherit;
+    font-weight: 600;
+    text-decoration: underline;
   }
 
   .small {

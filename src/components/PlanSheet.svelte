@@ -43,7 +43,12 @@
 
   const day = (iso) =>
     new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
-  const of = (used, limit) => (limit == null ? `${used}` : `${used} of ${limit}`)
+  const of = (used, limit) => `${used} of ${limit}`
+
+  // What the Teacher plan allows, for the comparison a Free teacher sees. The
+  // database (plan_limits) is what enforces these; this is only the brochure,
+  // like the prices beside it.
+  const TEACHER = { students: 60, displays: 10 }
 </script>
 
 <!-- A click on the backdrop lands on the dialog itself, never on its contents. -->
@@ -86,28 +91,59 @@
         </p>
       {/if}
 
-      <dl>
-        {#if plan.room_limit != null}
-          <div><dt>Games played</dt><dd>{of(Math.min(plan.rooms_used, plan.room_limit), plan.room_limit)}</dd></div>
-        {/if}
-        <div><dt>Quizzes</dt><dd>{of(plan.quizzes, plan.quiz_limit)}</dd></div>
-        <div><dt>Students in a room</dt><dd>up to {plan.player_limit}</dd></div>
-        <div><dt>Reports</dt><dd>{plan.report_days == null ? 'kept for good' : `last ${plan.report_days} days`}</dd></div>
-        <div><dt>Paired displays</dt><dd>up to {plan.display_limit}</dd></div>
-        <div><dt>Spreadsheet export</dt><dd>{paid ? 'yes' : 'no'}</dd></div>
-      </dl>
+      {#if paid}
+        <dl>
+          <div><dt>Games</dt><dd>Unlimited</dd></div>
+          <div><dt>Quizzes</dt><dd>Unlimited</dd></div>
+          <div><dt>Students in a room</dt><dd>Up to {plan.player_limit}</dd></div>
+          <div><dt>Reports</dt><dd>Kept for good</dd></div>
+          <div><dt>Paired displays</dt><dd>Up to {plan.display_limit}</dd></div>
+          <div><dt>Spreadsheet export</dt><dd>Yes</dd></div>
+        </dl>
+      {:else}
+        <!-- Side by side, so the upgrade is read as what changes, with the
+             teacher's own numbers on the left where they can see what is used up. -->
+        <table>
+          <thead>
+            <tr>
+              <td></td>
+              <th scope="col">Free <span class="you">you</span></th>
+              <th scope="col" class="teacher">Teacher</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class:spent={plan.rooms_used >= plan.room_limit}>
+              <th scope="row">Games</th>
+              <td>{of(Math.min(plan.rooms_used, plan.room_limit), plan.room_limit)}</td>
+              <td class="teacher">Unlimited</td>
+            </tr>
+            <tr class:spent={plan.quizzes >= plan.quiz_limit}>
+              <th scope="row">Quizzes</th>
+              <td>{of(plan.quizzes, plan.quiz_limit)}</td>
+              <td class="teacher">Unlimited</td>
+            </tr>
+            <tr>
+              <th scope="row">Students in a room</th>
+              <td>Up to {plan.player_limit}</td>
+              <td class="teacher">Up to {TEACHER.students}</td>
+            </tr>
+            <tr>
+              <th scope="row">Paired displays</th>
+              <td>{plan.display_limit}</td>
+              <td class="teacher">Up to {TEACHER.displays}</td>
+            </tr>
+            <tr>
+              <th scope="row">Spreadsheet export</th>
+              <td>No</td>
+              <td class="teacher">Yes</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="muted small">Everything you have made so far comes with you.</p>
 
-      {#if !paid}
-        <div class="upgrade">
-          <span class="eyebrow">Teacher plan</span>
-          <p class="muted small">
-            Unlimited games and quizzes, up to 60 students in a room, up to 10 displays, and spreadsheet export.
-            Everything you have made so far comes with you.
-          </p>
-          <div class="seg" role="group" aria-label="Billing period">
-            <button aria-pressed={!yearly} onclick={() => (yearly = false)}>$8 a month</button>
-            <button aria-pressed={yearly} onclick={() => (yearly = true)}>$72 a year</button>
-          </div>
+        <div class="seg" role="group" aria-label="Billing period">
+          <button aria-pressed={!yearly} onclick={() => (yearly = false)}>$8 a month</button>
+          <button aria-pressed={yearly} onclick={() => (yearly = true)}>$72 a year <span class="save">save 25%</span></button>
         </div>
       {/if}
 
@@ -208,9 +244,74 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .upgrade {
-    display: grid;
-    gap: 8px;
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  table th,
+  table td {
+    padding: 9px 12px;
+    text-align: left;
+  }
+
+  tbody th,
+  tbody td {
+    border-top: 1px solid var(--line);
+  }
+
+  tbody th {
+    color: var(--ink-muted);
+    font-weight: 400;
+  }
+
+  thead th {
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* The column being offered carries the brand colour, top to bottom. */
+  .teacher {
+    background: color-mix(in oklab, var(--neon-pink) 10%, transparent);
+    font-weight: 600;
+  }
+
+  thead .teacher {
+    border-top-right-radius: var(--radius-md);
+    color: var(--neon-pink);
+  }
+
+  tbody tr:last-child .teacher {
+    border-bottom-right-radius: var(--radius-md);
+  }
+
+  /* A limit that has been reached is the reason they are here. */
+  .spent td:not(.teacher) {
+    color: var(--wrong);
+    font-weight: 600;
+  }
+
+  .you {
+    margin-left: 4px;
+    padding: 1px 6px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-pill);
+    color: var(--ink-muted);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+
+  .save {
+    margin-left: 4px;
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.8;
   }
 
   .seg {

@@ -223,7 +223,7 @@
           {/if}
         </span>
       </div>
-      <button class="ghost" onclick={exportCsv}>Export CSV</button>
+      <button class="ghost" onclick={exportCsv}>Export spreadsheet</button>
     </header>
 
     <!-- The answer to the question the phase exists for, in words, before any
