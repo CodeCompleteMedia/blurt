@@ -162,7 +162,7 @@
 
 <div class="shell">
   <nav aria-label="Teacher">
-    <a class="wordmark brand" href="/host">blurt!</a>
+    <a class="wordmark brand" href="/host">Blurt!</a>
 
     <div class="places">
       <a href="/host" aria-current={current === 'host' ? 'page' : undefined}>

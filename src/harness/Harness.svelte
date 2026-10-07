@@ -53,7 +53,7 @@
 <main>
   <h2 class="eyebrow">Wordmark</h2>
   <div class="row">
-    <span class="wordmark big">blurt!</span>
+    <span class="wordmark big">Blurt!</span>
   </div>
 
   <h2 class="eyebrow">Sound — nobody has ever actually heard these</h2>

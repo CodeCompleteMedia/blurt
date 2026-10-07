@@ -91,7 +91,7 @@
 
 <main class="surface">
   <div class="card">
-    <h1 class="wordmark">blurt!</h1>
+    <h1 class="wordmark">Blurt!</h1>
 
     {#if step === 'code'}
       <form onsubmit={submitCode}>

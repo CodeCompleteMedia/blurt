@@ -17,7 +17,7 @@ export function reportCsv({ summary, questions, players }) {
   const asked = questions.length
   return [
     rows([
-      ['blurt report'],
+      ['Blurt report'],
       ['Quiz', summary.quizTitle],
       ['Room', summary.code],
       ['Played', new Date(summary.playedAt).toLocaleString()],

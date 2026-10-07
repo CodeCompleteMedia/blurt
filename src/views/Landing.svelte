@@ -70,7 +70,7 @@
 </script>
 
 <svelte:head>
-  <title>blurt · Know it? BLURT it!</title>
+  <title>Blurt · Know it? BLURT it!</title>
   <meta
     name="description"
     content="A live classroom quiz where the choices stay hidden until someone says the answer out loud. Students join from any phone with a room code."
@@ -100,7 +100,7 @@
   </form>
 
   <header class="top">
-    <span class="wordmark brand">blurt!</span>
+    <span class="wordmark brand">Blurt!</span>
     <div class="top-end">
       <!-- The same choice as the account menu's Appearance: one preference per
            browser, so a teacher who likes it light sees the front door light. -->
@@ -296,7 +296,7 @@
         <article class="plan" aria-labelledby="plan-free">
           <h3 id="plan-free">Free</h3>
           <p class="price"><span class="amount">$0</span></p>
-          <p class="for">For seeing blurt in action with your class.</p>
+          <p class="for">For seeing Blurt in action with your class.</p>
           <ul>
             <li>3 full games</li>
             <li>Up to 40 students in a room</li>
@@ -341,7 +341,7 @@
   </main>
 
   <footer>
-    <span class="wordmark small">blurt!</span>
+    <span class="wordmark small">Blurt!</span>
     <a href="/join">Join a room</a>
     <a href="/host">Teacher sign in</a>
   </footer>

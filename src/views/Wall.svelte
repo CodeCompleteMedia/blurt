@@ -41,9 +41,9 @@
       <p class="muted">…</p>
     {:else if !wallId || !room}
       <h1 class="hush">Not a display</h1>
-      <p class="muted">This link does not match any display. Check it in blurt under Room → Displays.</p>
+      <p class="muted">This link does not match any display. Check it in Blurt under Room → Displays.</p>
     {:else}
-      <span class="wordmark mark">blurt!</span>
+      <span class="wordmark mark">Blurt!</span>
       <h1>{room.label}</h1>
       <p class="muted">Ready. Send a room to this display from the teacher's screen.</p>
     {/if}

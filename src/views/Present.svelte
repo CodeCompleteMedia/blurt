@@ -298,7 +298,7 @@
 
 <main class="stage surface" style:--doodles="url({doodles})">
   <header>
-    <span class="wordmark brand">blurt!</span>
+    <span class="wordmark brand">Blurt!</span>
     {#if game && game.question_index >= 0 && phase !== 'final'}
       <span class="eyebrow">Question {game.question_index + 1}</span>
     {/if}

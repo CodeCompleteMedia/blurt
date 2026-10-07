@@ -45,7 +45,7 @@ const links = [
 if (!shell.includes('<div id="app"></div>')) throw new Error('prerender: no empty #app in index.html')
 
 const page = shell
-  .replace('<title>blurt</title>', '')
+  .replace('<title>Blurt</title>', '')
   .replace('</head>', `  ${markedHead}\n    ${links}\n  </head>`)
   .replace('<div id="app"></div>', `<div id="app" data-prerendered>${body}</div>`)
 

@@ -47,7 +47,7 @@
 {#if !configured && view !== 'home'}
   <main class="setup">
     <div>
-      <h1 class="wordmark">blurt!</h1>
+      <h1 class="wordmark">Blurt!</h1>
       <p>
         No database configured. This build is missing
         <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>.
@@ -64,7 +64,7 @@
          bad connection. Say so, and offer the obvious fix. -->
     <main class="setup">
       <div>
-        <h1 class="wordmark">blurt!</h1>
+        <h1 class="wordmark">Blurt!</h1>
         <p>This page didn't finish loading. The connection may have dropped.</p>
         <p class="fix"><button onclick={() => window.location.reload()}>Try again</button></p>
       </div>

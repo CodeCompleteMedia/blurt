@@ -67,7 +67,7 @@
         <strong class="name">{paid ? 'Teacher' : 'Free'}</strong>
         <span class="muted">
           {#if !paid}
-            {plan.room_limit} full games with your class, to see blurt in action.
+            {plan.room_limit} full games with your class, to see Blurt in action.
           {:else if plan.comp && !plan.status}
             On the house. Nothing to pay.
           {:else if plan.status === 'past_due'}

@@ -139,7 +139,7 @@
 {:else if auth.recovering}
   <main class="surface gate">
     <form class="card" onsubmit={choose}>
-      <h1 class="wordmark">blurt!</h1>
+      <h1 class="wordmark">Blurt!</h1>
       <p class="muted">Choose a new password. You are signed in on this device while you do.</p>
 
       <label for="new-password">New password</label>
@@ -174,7 +174,7 @@
 {:else if waiting}
   <main class="surface gate">
     <div class="card">
-      <h1 class="wordmark">blurt!</h1>
+      <h1 class="wordmark">Blurt!</h1>
       <h2>Check your inbox</h2>
       <p class="muted">
         We sent a link to <strong>{email.trim()}</strong>. Click it to confirm the address.
@@ -182,9 +182,9 @@
       <p class="wanted solo">
         {#if wanted}
           The link takes you on to payment (Teacher plan, {wanted === 'year' ? '$72 a year' : '$8 a month'}) and then
-          into blurt. You can close this page.
+          into Blurt. You can close this page.
         {:else}
-          The link takes you straight into blurt. You can close this page.
+          The link takes you straight into Blurt. You can close this page.
         {/if}
       </p>
 
@@ -198,7 +198,7 @@
 {:else}
   <main class="surface gate">
     <form class="card" onsubmit={submit}>
-      <h1 class="wordmark">blurt!</h1>
+      <h1 class="wordmark">Blurt!</h1>
       <p class="muted">
         {mode === 'in'
           ? 'Sign in to host a room or edit your quizzes.'
