@@ -372,8 +372,15 @@
     border-radius: 6px;
   }
 
+  /* The file input is hidden but still takes focus when "+ Picture" is
+     clicked, and the browser scrolls to wherever it is. Keep it on its label. */
+  .upload {
+    position: relative;
+  }
+
   .upload input {
     position: absolute;
+    inset: 0 auto auto 0;
     width: 1px;
     height: 1px;
     opacity: 0;

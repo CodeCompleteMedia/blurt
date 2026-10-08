@@ -287,6 +287,9 @@
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
     height: 100%;
+    /* The bar stays put and only .content scrolls. Nothing is allowed to make
+       the page scroll as well. */
+    overflow: hidden;
   }
 
   nav {
@@ -581,6 +584,12 @@
      the bar stays put and only this scrolls. */
   .content {
     overflow: auto;
+    /* Makes this the box that hidden, absolutely positioned things inside it
+       are measured against: screen-reader labels, the picture upload's file
+       input. Without it they belong to the page, sit at their place in a long
+       editor, and make the page itself scroll: a second scrollbar, and a jump
+       into blank space the moment one of them takes focus. */
+    position: relative;
   }
 
   @media (max-width: 560px) {
