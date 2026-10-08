@@ -75,3 +75,10 @@ test('nested parameters are encoded the way Stripe reads them', () => {
     'mode=subscription&line_items[0][price]=price_1&line_items[0][quantity]=1&metadata[user_id]=u',
   )
 })
+
+test('a subscription with payment collection paused is not a paid one', () => {
+  const item = { price: { recurring: { interval: 'month' } }, current_period_end: 86400 }
+  const paused = planRow({ id: 's', status: 'active', pause_collection: { behavior: 'void' }, items: { data: [item] } })
+  assert.equal(paused.status, 'paused')
+  assert.equal(planRow({ id: 's', status: 'active', pause_collection: null, items: { data: [item] } }).status, 'active')
+})

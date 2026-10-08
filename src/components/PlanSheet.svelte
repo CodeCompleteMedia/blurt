@@ -2,7 +2,7 @@
   // Plan & billing: what the teacher is on, how much of it is used, and the
   // way to Stripe. Paying, changing card and cancelling all happen on Stripe's
   // pages; this sheet only knows which one to send them to.
-  import { billing, openPortal, refreshPlan, startCheckout } from '../lib/billing.svelte.js'
+  import { billing, openPortal, refreshPlan, refreshPlanFromStripeIfStale, startCheckout } from '../lib/billing.svelte.js'
   import { CONTACT } from '../lib/config.js'
 
   let dialog = $state()
@@ -19,7 +19,10 @@
     note = failed ? '' : why
     problem = failed ? why : ''
     if (!dialog.open) dialog.showModal()
-    refreshPlan().catch((error) => (problem ||= error.message))
+    // Whoever opens this is asking what their plan is, so ask Stripe, unless
+    // the answer on hand is under a minute old (as it is on the way back from
+    // Checkout, which has just asked).
+    refreshPlanFromStripeIfStale(60 * 1000).catch((error) => (problem ||= error.message))
   }
 
   async function go(trip) {

@@ -84,6 +84,14 @@ A review of the billing commits found nothing exploitable from the code alone, a
 
 - [ ] `npx supabase db push` to apply `0036`.
 
+## Cancellation audit, 8 October
+
+A live subscription was cancelled and refunded in Stripe and stayed on the Teacher plan in Blurt. The cause was blocker 2: the live webhook was registered at the bare domain, which redirects, so no event was delivered. The address is now `https://www.blurt.it.com/api/billing/webhook`; the cancellation was re-delivered and the account dropped to Free.
+
+Ten scenarios were then run in the sandbox through the real handler: new subscription, cancel at period end, undo, refund only, pause and resume, immediate cancel, duplicate and stale events, resubscribe, and period end. All passed after one fix: a subscription with payment collection paused stays `active` in Stripe while charging nothing, and is now recorded as paused, which is Free.
+
+The app also re-reads Stripe hourly while a teacher is using it, and whenever Plan & billing is opened, so a missed webhook is corrected within the hour.
+
 ## Smaller things
 
 - **Product name.** Stripe calls the product "blurt Pro"; the site calls the plan "Teacher". Teachers see Stripe's name on Checkout and receipts.

@@ -106,7 +106,10 @@ export function planRow(subscription) {
   const periodEnd = item?.current_period_end ?? subscription.current_period_end
   return {
     stripe_subscription_id: subscription.id,
-    status: subscription.status,
+    // "Pause payment collection" leaves a subscription `active` while nothing
+    // is charged, which would be the Teacher plan for free. Record it as
+    // paused, a status the database does not count as paid.
+    status: subscription.pause_collection ? 'paused' : subscription.status,
     billing_interval: item?.price?.recurring?.interval ?? null,
     // A subscription set to end shows the day it ends.
     current_period_end: iso(subscription.cancel_at ?? periodEnd),

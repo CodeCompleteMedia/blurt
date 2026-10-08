@@ -55,20 +55,26 @@ export async function syncPlan() {
 }
 
 /**
- * Read the plan, and if what the database holds about a subscription is more
- * than a day old, have the server read Stripe again first.
+ * Read the plan, and if what the database holds about a subscription is older
+ * than `maxAge`, have the server read Stripe again first.
  *
  * Normally the webhook keeps the row current and this does nothing. It is for
- * the day the webhook does not arrive: the database stops believing a
- * subscription a few days after its paid period (migration 0036), and without
- * this a teacher whose renewal went through unseen would be dropped to Free.
+ * when the webhook does not arrive. On 8 October 2026 the live endpoint was
+ * registered at an address that redirected, no event was delivered, and a
+ * subscription cancelled and refunded in Stripe stayed on the Teacher plan
+ * here. With this, the row is at most an hour behind Stripe for anyone using
+ * the app, and current whenever Plan & billing is opened. It also keeps a
+ * teacher whose renewal went through unseen from being dropped when the
+ * database stops believing the old period (migration 0036).
+ *
  * The server only ever copies what Stripe says, so there is nothing to gain by
  * calling this, or by not calling it.
  */
-export async function refreshPlanFromStripeIfStale() {
+export const HOUR = 60 * 60 * 1000
+
+export async function refreshPlanFromStripeIfStale(maxAge = HOUR) {
   const plan = await refreshPlan()
-  const DAY = 24 * 60 * 60 * 1000
-  const stale = plan?.has_customer && plan.status && Date.now() - new Date(plan.synced_at).getTime() > DAY
+  const stale = plan?.has_customer && plan.status && Date.now() - new Date(plan.synced_at).getTime() > maxAge
   // If Stripe cannot be reached, what the database says stands.
   return stale ? syncPlan().catch(() => plan) : plan
 }
