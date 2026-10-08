@@ -54,6 +54,25 @@ export async function syncPlan() {
   return refreshPlan()
 }
 
+/**
+ * Read the plan, and if what the database holds about a subscription is more
+ * than a day old, have the server read Stripe again first.
+ *
+ * Normally the webhook keeps the row current and this does nothing. It is for
+ * the day the webhook does not arrive: the database stops believing a
+ * subscription a few days after its paid period (migration 0036), and without
+ * this a teacher whose renewal went through unseen would be dropped to Free.
+ * The server only ever copies what Stripe says, so there is nothing to gain by
+ * calling this, or by not calling it.
+ */
+export async function refreshPlanFromStripeIfStale() {
+  const plan = await refreshPlan()
+  const DAY = 24 * 60 * 60 * 1000
+  const stale = plan?.has_customer && plan.status && Date.now() - new Date(plan.synced_at).getTime() > DAY
+  // If Stripe cannot be reached, what the database says stands.
+  return stale ? syncPlan().catch(() => plan) : plan
+}
+
 // -------------------------------------------------------------- the intent --
 // "I want the Teacher plan, yearly", carried from the pricing page through
 // sign-up to Checkout. It rides in the address (/host?plan=year), and is also

@@ -14,6 +14,7 @@
     onShowPlan,
     peekIntent,
     refreshPlan,
+    refreshPlanFromStripeIfStale,
     releaseCheckout,
     startCheckout,
     syncPlan,
@@ -93,7 +94,7 @@
         })
         .catch(() => {})
     } else {
-      refreshPlan().catch(() => {})
+      refreshPlanFromStripeIfStale().catch(() => {})
     }
   })
 

@@ -74,6 +74,16 @@ Three changes are in the working tree and not deployed. All build cleanly and th
 
 See blocker 5: the production addresses are not on the allow-list.
 
+## Security review, 8 October
+
+A review of the billing commits found nothing exploitable from the code alone, and three weaker points:
+
+- **A sandbox payment counts as paid in production**, because local dev uses sandbox keys against the production database. Closed by decision: there will never be a Preview or Development deployment, so only the owner's own local testing can do this. Delete or cancel sandbox test accounts afterwards.
+- **A cancelled plan never ended if the webhook was not arriving.** Fixed in migration `0036`: a subscription is believed only until three days past its paid period, and the app re-reads Stripe when a row is a day old. Blocker 2 above (the webhook address) is still the proper path.
+- **A closed waiting room could still be started**, letting a Free teacher play more than three games. Fixed in `0036`.
+
+- [ ] `npx supabase db push` to apply `0036`.
+
 ## Smaller things
 
 - **Product name.** Stripe calls the product "blurt Pro"; the site calls the plan "Teacher". Teachers see Stripe's name on Checkout and receipts.

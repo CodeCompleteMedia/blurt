@@ -105,13 +105,30 @@ begin
     end if;
   end loop;
 
+  -- A paid status is believed only as far as the period Stripe last reported,
+  -- and three days past it. This is what ends a plan when no webhook does.
+  for v in select * from (values
+    ('active',   interval '30 days',  'teacher'),
+    ('active',   interval '-1 day',   'teacher'),
+    ('active',   interval '-4 days',  'free'),
+    ('past_due', interval '-4 days',  'free'),
+    ('trialing', interval '-4 days',  'free'),
+    ('canceled', interval '30 days',  'free')
+  ) as s (status, ends, plan) loop
+    update public.teacher_plans set status = v.status, current_period_end = now() + v.ends where user_id = c;
+    if public.plan_of(c) <> v.plan then
+      raise exception 'status % ending % gives %, expected %', v.status, v.ends, public.plan_of(c), v.plan;
+    end if;
+  end loop;
+
+  -- A gift has no period, and does not run out with a subscription that has.
   update public.teacher_plans set comp = true where user_id = c;
   if public.plan_of(c) <> 'teacher' then raise exception 'a comped account is not on the Teacher plan'; end if;
   delete from public.teacher_plans where user_id = c;
   if public.plan_of(c) <> 'free' then raise exception 'no row should mean Free'; end if;
   if public.plan_of(null) <> 'free' then raise exception 'nobody should mean Free'; end if;
 
-  raise notice 'ok  active, trialing and past_due pay; every other status, and no row, is Free';
+  raise notice 'ok  active, trialing and past_due pay until three days past the paid period; every other status, and no row, is Free';
 end $$;
 
 -- ----------------------------------------------------------------- quizzes ---
@@ -185,6 +202,15 @@ begin
   select coalesce(sum(rooms), 0) into n from public.room_usage where user_id = b::uuid;
   if n <> 0 then raise exception 'rooms nobody played were counted: %', n; end if;
 
+  -- The room that was replaced cannot be started after all (0036), or a class
+  -- seated in each waiting room would be a game each.
+  select s.host_token into strict v_host
+  from public.games g join public.game_secrets s on s.game_id = g.id
+  where g.owner_id = b::uuid and g.closed_at is not null;
+  perform pg_temp.expect(pg_temp.as_teacher(b, format('select public.advance_game(%L)', v_host)), '23514', 'starting a closed waiting room');
+  select coalesce(sum(rooms), 0) into n from public.room_usage where user_id = b::uuid;
+  if n <> 0 then raise exception 'a refused start was counted: %', n; end if;
+
   -- Three games: each counts when its first question is asked, and only once.
   for i in 1..3 loop
     if i > 1 then
@@ -225,7 +251,7 @@ begin
   select count(*) into n from public.games g where g.owner_id = a::uuid and g.question_index < 0 and g.closed_at is null;
   if n <> 2 then raise exception 'a paid teacher has % waiting rooms, expected both kept', n; end if;
 
-  raise notice 'ok  three games ever on Free, counted at the first question, not won back by deleting; no limit when paid';
+  raise notice 'ok  three games ever on Free, counted at the first question, not won back by deleting or by a closed room; no limit when paid';
 end $$;
 
 -- ------------------------------------------------------ students in a room ---
