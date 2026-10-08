@@ -3,6 +3,7 @@
   // way to Stripe. Paying, changing card and cancelling all happen on Stripe's
   // pages; this sheet only knows which one to send them to.
   import { billing, openPortal, refreshPlan, startCheckout } from '../lib/billing.svelte.js'
+  import { CONTACT } from '../lib/config.js'
 
   let dialog = $state()
   let note = $state('')
@@ -160,6 +161,7 @@
         {/if}
       </div>
       {#if !paid}<p class="muted small fine">Payment is taken by Stripe. Cancel any time.</p>{/if}
+      <p class="muted small fine">Questions about your plan? <a href="mailto:{CONTACT}">{CONTACT}</a></p>
     {/if}
   </div>
 </dialog>
@@ -213,6 +215,10 @@
 
   .fine {
     text-align: right;
+  }
+
+  .fine a {
+    color: inherit;
   }
 
   dl {

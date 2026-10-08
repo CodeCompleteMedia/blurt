@@ -9,6 +9,7 @@
   // the class will actually see, not a drawing of it.
   import AnswerTile from '../components/AnswerTile.svelte'
   import CountdownRing from '../components/CountdownRing.svelte'
+  import { CONTACT } from '../lib/config.js'
   import { choiceFor } from '../lib/answers.js'
   import { calm } from '../lib/motion.js'
   import { setTheme, theme } from '../lib/theme.svelte.js'
@@ -344,6 +345,7 @@
     <span class="wordmark small">Blurt!</span>
     <a href="/join">Join a room</a>
     <a href="/host">Teacher sign in</a>
+    <a href="mailto:{CONTACT}">Questions? {CONTACT}</a>
   </footer>
 </div>
 
